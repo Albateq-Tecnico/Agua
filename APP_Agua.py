@@ -39,7 +39,7 @@ def analizar_calidad_agua(datos):
             """
         })
 
-    # 2. Análisis de Desinfección por Cloro (LÓGICA MEJORADA)
+    # 2. Análisis de Desinfección por Cloro
     if datos["cloro_libre"] < 1.0:
         diagnosticos.append({
             "tipo": "warning",
@@ -53,8 +53,6 @@ def analizar_calidad_agua(datos):
                 2. **Verificar Demanda de Cloro:** Si el cloro se consume rápidamente, puede haber una alta carga orgánica. Considerar un tratamiento de choque (supercloración).
             """
         })
-    # --- LÓGICA AJUSTADA ---
-    # Se activa si el cloro libre es menos del 85% del cloro total.
     elif datos["cloro_total"] > 0 and (datos["cloro_libre"] / datos["cloro_total"]) < 0.85:
         cloro_combinado = datos["cloro_total"] - datos["cloro_libre"]
         proporcion_libre = (datos["cloro_libre"] / datos["cloro_total"]) * 100
@@ -74,7 +72,7 @@ def analizar_calidad_agua(datos):
             """
         })
 
-    # 3. Análisis de Metales (y el resto del código sigue igual)...
+    # 3. Análisis de Metales
     if datos["hierro"] > 0.3 or datos["manganeso"] > 0.05:
         diagnosticos.append({
             "tipo": "warning",
@@ -90,6 +88,7 @@ def analizar_calidad_agua(datos):
             """
         })
         
+    # 4. Análisis de Parámetros Físico-Químicos
     if datos["turbidez"] > 1.0:
         diagnosticos.append({
             "tipo": "warning",
@@ -119,6 +118,7 @@ def analizar_calidad_agua(datos):
             """
         })
 
+    # 5. Análisis de Sales y Minerales
     if datos["dureza_total"] > 180:
         diagnosticos.append({
             "tipo": "warning",
@@ -148,9 +148,9 @@ def analizar_calidad_agua(datos):
         })
         
     return diagnosticos
-#
-# --- El resto del código (clase PDF, interfaz de Streamlit) permanece sin cambios ---
-#
+
+# --- Clase para Generación de PDF ---
+
 class PDF(FPDF):
     def header(self):
         self.set_font('Arial', 'B', 12)
@@ -183,7 +183,8 @@ class PDF(FPDF):
         else:
             self.set_text_color(40, 167, 69)
 
-        titulo_pdf = re.sub(r'[^\w\s\.:-%]', '', titulo)
+        # *** SOLUCIÓN: Escapar el guion '-' en la expresión regular ***
+        titulo_pdf = re.sub(r'[^\w\s\.:\-%]', '', titulo)
 
         self.set_font('Arial', 'B', 11)
         self.multi_cell(0, 5, titulo_pdf)
@@ -231,6 +232,7 @@ def generar_pdf(datos_entrada, resultados):
             
     return bytes(pdf.output())
 
+# --- Interfaz de Usuario (Streamlit) ---
 try:
     st.image("log_PEQ.png", width=100)
 except FileNotFoundError:
@@ -256,6 +258,7 @@ with st.sidebar:
 
     analizar_btn = st.button("Analizar Calidad del Agua", type="primary", use_container_width=True)
 
+# --- Lógica de Visualización de Resultados ---
 if analizar_btn:
     if cloro_total < cloro_libre:
         st.error("Error: El Cloro Total no puede ser menor que el Cloro Libre. Por favor, corrija los valores.")
