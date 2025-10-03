@@ -13,14 +13,59 @@ st.set_page_config(
 )
 
 # --- Funciones de Lógica y Análisis ---
-
 def analizar_calidad_agua(datos):
     """
     Analiza los datos del agua basándose en un árbol de decisión y devuelve una lista de diagnósticos.
     """
     diagnosticos = []
     
-    # 1. Análisis de Microbiología (Prioridad Crítica)
+    # --- Análisis de ORP (con contexto de pH y Cloro) ---
+    if datos["orp"] >= 650:
+        diagnosticos.append({
+            "tipo": "success",
+            "titulo": "✅ DIAGNÓSTICO: Excelente Potencial de Desinfección (ORP)",
+            "riesgos": """
+                - **Desinfección Rápida y Eficaz:** Un ORP superior a +650 mV indica que el desinfectante es altamente activo y capaz de eliminar patógenos de forma casi instantánea.
+                - **Agua Sanitaria:** El agua se encuentra en un estado oxidante, lo que previene el crecimiento microbiano.
+                - **Importante:** Este valor es significativo solo si se acompaña de un nivel de **Cloro Libre adecuado (>1.0 mg/L)** y un **pH en el rango óptimo (6.0-7.0)**.
+            """,
+            "acciones": """
+                1. **Mantener Parámetros:** Continuar con las buenas prácticas de dosificación y control de pH para mantener este excelente nivel de ORP.
+                2. **Monitoreo Regular:** El ORP puede cambiar rápidamente. Es recomendable un monitoreo constante para asegurar que se mantenga en el rango ideal.
+            """
+        })
+    elif 200 <= datos["orp"] < 650:
+        diagnosticos.append({
+            "tipo": "warning",
+            "titulo": "⚠️ DIAGNÓSTICO: Desinfección Lenta o Pobre (ORP)",
+            "riesgos": """
+                - **Eficacia Reducida del Desinfectante:** La desinfección no es instantánea. Ciertos patógenos podrían sobrevivir.
+                - **Causa Probable:** Un ORP bajo, incluso con cloro, generalmente indica un **pH demasiado alto (>7.5)** o una alta carga de contaminantes orgánicos (biofilm) que consumen el poder del desinfectante.
+                - **Análisis Incompleto:** Una medida de ORP por sí sola es un análisis incompleto. Debe validarse siempre con los niveles de Cloro y pH.
+            """,
+            "acciones": """
+                1. **Verificar y Corregir pH (Acción Prioritaria):** Asegurarse de que el pH esté en el rango ideal (6.0 - 7.0 para cloro) para maximizar la eficacia del desinfectante.
+                2. **Considerar Supercloración:** Si el pH es correcto, el bajo ORP indica una alta demanda. Realizar una supercloración de choque para oxidar los contaminantes.
+                3. **Revisar Filtración:** Un sistema de filtrado ineficiente puede dejar pasar contaminantes que consumen el poder del desinfectante.
+            """
+        })
+    else: # ORP < 200 mV
+        diagnosticos.append({
+            "tipo": "error",
+            "titulo": "🚨 DIAGNÓSTICO: Nivel Sanitario Crítico (ORP)",
+            "riesgos": """
+                - **Sin Capacidad de Desinfección:** El agua no puede eliminar patógenos. El riesgo de transmisión de enfermedades es extremadamente alto.
+                - **Condiciones Reductoras:** El agua favorece el crecimiento de bacterias anaeróbicas, que pueden incluir especies dañinas y causar malos olores.
+                - **Agua No Apta para Consumo:** Bajo ninguna circunstancia se debe consumir o usar esta agua, independientemente de la lectura de cloro.
+            """,
+            "acciones": """
+                1. **Acción Inmediata: NO USAR EL AGUA.**
+                2. **Supercloración Masiva y Urgente:** Es necesario aplicar una dosis muy alta de un oxidante fuerte (como cloro) para eliminar la carga de contaminantes y elevar el ORP a un nivel seguro.
+                3. **Identificar y Eliminar la Fuente de Contaminación:** Realizar una inspección completa del sistema para encontrar la causa raíz del problema.
+            """
+        })
+
+    # 1. Análisis de Microbiología
     if datos["e_coli"] > 0 or datos["coliformes_totales"] > 0:
         diagnosticos.append({
             "tipo": "error",
@@ -28,14 +73,11 @@ def analizar_calidad_agua(datos):
             "riesgos": """
                 - **Riesgo Sanitario Extremo:** La presencia de E. coli o coliformes totales indica contaminación fecal.
                 - **Enfermedades Graves:** Puede causar enfermedades gastrointestinales severas, infecciones y otras condiciones graves.
-                - **No Apta para Consumo:** El agua no debe ser consumida ni utilizada para cocinar o higiene personal bajo ninguna circunstancia.
             """,
             "acciones": """
                 1. **No Consumir el Agua:** Suspender inmediatamente el uso del agua para beber o cocinar.
-                2. **Hervir el Agua:** Si es absolutamente necesario usarla, hervir el agua durante al menos 5 minutos antes de cualquier uso.
-                3. **Desinfección Urgente:** Aplicar un tratamiento de choque con cloro (supercloración) en la fuente de agua (pozo, tanque).
-                4. **Identificar la Fuente:** Inspeccionar el sistema en busca de posibles puntos de contaminación (fisuras, cercanía a fosas sépticas).
-                5. **Repetir Análisis:** Realizar un nuevo análisis microbiológico después del tratamiento para confirmar la eliminación de bacterias.
+                2. **Desinfección Urgente:** Aplicar un tratamiento de choque con cloro (supercloración) en la fuente de agua.
+                3. **Identificar la Fuente:** Inspeccionar el sistema en busca de posibles puntos de contaminación.
             """
         })
 
@@ -44,14 +86,8 @@ def analizar_calidad_agua(datos):
         diagnosticos.append({
             "tipo": "warning",
             "titulo": "🟡 DIAGNÓSTICO: Nivel de Cloro Libre Insuficiente",
-            "riesgos": """
-                - **Desinfección Ineficaz:** Un nivel por debajo de 1.0 mg/L no garantiza la eliminación de virus y bacterias.
-                - **Riesgo de Crecimiento Microbiológico:** El agua no tiene protección residual contra una posible re-contaminación en la red de tuberías.
-            """,
-            "acciones": """
-                1. **Aumentar Dosificación de Cloro:** Ajustar el sistema de cloración para mantener un residual de cloro libre entre 1.0 y 3.0 mg/L.
-                2. **Verificar Demanda de Cloro:** Si el cloro se consume rápidamente, puede haber una alta carga orgánica. Considerar un tratamiento de choque (supercloración).
-            """
+            "riesgos": "- **Desinfección Ineficaz:** No se garantiza la eliminación de virus y bacterias.\n- **Riesgo de Crecimiento Microbiológico:** El agua no tiene protección residual.",
+            "acciones": "1. **Aumentar Dosificación de Cloro:** Ajustar para mantener un residual de cloro libre entre 1.0 y 3.0 mg/L.\n2. **Verificar Demanda de Cloro:** Considerar un tratamiento de choque si el cloro se consume rápidamente."
         })
     elif datos["cloro_total"] > 0 and (datos["cloro_libre"] / datos["cloro_total"]) < 0.85:
         cloro_combinado = datos["cloro_total"] - datos["cloro_libre"]
@@ -59,17 +95,8 @@ def analizar_calidad_agua(datos):
         diagnosticos.append({
             "tipo": "warning",
             "titulo": "🟡 DIAGNÓSTICO: Alta Demanda de Cloro (Posible Biofilm)",
-            "riesgos": f"""
-                - **Proporción de Cloro Libre:** {proporcion_libre:.1f}% (Ideal: > 85%).
-                - **Nivel de Cloro Combinado:** {cloro_combinado:.2f} mg/L.
-                - **Causa Probable:** Estos valores son un fuerte indicio de **biofilm** en las tuberías o de alta materia orgánica en el agua.
-                - **Ineficiencia y Riesgo:** El biofilm consume el desinfectante, protege a bacterias patógenas (como *Legionella*) y puede causar olores y sabores desagradables.
-            """,
-            "acciones": """
-                1. **Supercloración de Choque:** Aplicar una dosis de cloro alta y sostenida (ej. >10 mg/L durante varias horas) para penetrar y eliminar el biofilm de las tuberías y depósitos.
-                2. **Investigar el Sistema:** Inspeccionar depósitos y puntos muertos de la red. Considerar una limpieza física (cepillado, flushing de alta velocidad) si el problema persiste.
-                3. **Filtración Previa:** Si la causa es materia orgánica en la fuente, instalar un filtro de carbón activado o multimedia antes de la cloración.
-            """
+            "riesgos": f"- **Proporción de Cloro Libre:** {proporcion_libre:.1f}% (Ideal: > 85%).\n- **Nivel de Cloro Combinado:** {cloro_combinado:.2f} mg/L.\n- **Causa Probable:** Fuerte indicio de **biofilm** o alta materia orgánica en el agua.",
+            "acciones": "1. **Supercloración de Choque:** Aplicar una dosis alta y sostenida para eliminar el biofilm.\n2. **Investigar el Sistema:** Inspeccionar depósitos y puntos muertos de la red."
         })
 
     # 3. Análisis de Metales
@@ -77,34 +104,15 @@ def analizar_calidad_agua(datos):
         diagnosticos.append({
             "tipo": "error",
             "titulo": "🔴 DIAGNÓSTICO: Contaminación Severa por Hierro y Ferrobacterias",
-            "riesgos": """
-                - **Infestación por Ferrobacterias:** Niveles tan altos de hierro son el caldo de cultivo ideal para bacterias que se alimentan de él.
-                - **Formación de Biofilm (Baba):** Estas bacterias crean una masa gelatinosa rojiza que obstruye tuberías, bombas y filtros.
-                - **Problemas Graves de Olor, Sabor y Color:** El agua tendrá un sabor metálico intenso, olores a moho o pantano y un color marrón-rojizo.
-                - **Corrosión Acelerada:** La actividad de estas bacterias puede corroer las tuberías metálicas (MIC).
-            """,
-            "acciones": """
-                1. **Desinfección de Choque y Limpieza (ACCIÓN PRIORITARIA):** Antes de filtrar, es crucial eliminar la biomasa. Realizar una supercloración masiva (20-50 mg/L) en todo el sistema (pozo, depósitos, tuberías) y dejar actuar por 12-24 horas. Luego, realizar un purgado (flushing) intenso para expulsar el biofilm muerto.
-                2. **Instalar Tratamiento de Cloración Única (Pre-Filtro):**
-                   - **Instalación:** Colocar un dosificador de cloro **antes** del sistema de filtración.
-                   - **Objetivo:** Dosificar cloro hasta superar el **"punto de ruptura"**. Esto significa que la dosis debe ser suficiente para **(a)** oxidar todo el hierro, **(b)** matar las bacterias y **(c)** dejar un residual de cloro libre de 1-2 mg/L **después** del filtro para la desinfección final.
-                   - **Filtración:** Utilizar un filtro apropiado (arena verde, zeolita catalítica, etc.) para remover el hierro ya oxidado.
-                3. **Mantenimiento:** Realizar cloraciones de mantenimiento y retrolavados periódicos del filtro para evitar la re-acumulación.
-            """
+            "riesgos": "- **Infestación por Ferrobacterias:** Caldo de cultivo ideal para bacterias que se alimentan de hierro.\n- **Formación de Biofilm (Baba):** Obstruye tuberías, bombas y filtros.\n- **Problemas Graves de Olor, Sabor y Color.**\n- **Corrosión Acelerada (MIC).**",
+            "acciones": "1. **Desinfección de Choque y Limpieza (PRIORITARIO):** Supercloración masiva (20-50 mg/L) y purgado intenso.\n2. **Instalar Tratamiento de Oxidación/Filtración:** Colocar un dosificador de cloro antes de un filtro de arena verde o zeolita para remover el hierro y prevenir re-infestación.\n3. **Mantenimiento:** Realizar cloraciones y retrolavados periódicos."
         })
     elif datos["hierro"] > 0.3 or datos["manganeso"] > 0.05:
         diagnosticos.append({
             "tipo": "warning",
             "titulo": "🟡 DIAGNÓSTICO: Riesgo por Metales",
-            "riesgos": """
-                - **Problemas Estéticos:** Puede causar coloración (rojiza/marrón), sabor metálico y manchas en ropa y sanitarios.
-                - **Acumulación en Tuberías:** El hierro y manganeso pueden acumularse, reduciendo la presión del agua y favoreciendo el crecimiento de bacterias y biofilm.
-            """,
-            "acciones": """
-                1. **Instalar Filtro de Sedimentos:** Para partículas más grandes de óxido de hierro.
-                2. **Sistema de Oxidación/Filtración:** Utilizar un sistema que oxida los metales (con cloro o aire) para que puedan ser filtrados fácilmente. Un filtro de arena verde (greensand) es muy efectivo.
-                3. **Ablandador de Agua con Intercambio Iónico:** Algunos ablandadores también pueden reducir niveles moderados de hierro y manganeso.
-            """
+            "riesgos": "- **Problemas Estéticos:** Color, sabor metálico y manchas.\n- **Acumulación en Tuberías:** Favorece el crecimiento de biofilm.",
+            "acciones": "1. **Sistema de Oxidación/Filtración:** Usar cloro o aire para oxidar los metales antes de un filtro de arena verde."
         })
         
     # 4. Análisis de Parámetros Físico-Químicos
@@ -112,29 +120,16 @@ def analizar_calidad_agua(datos):
         diagnosticos.append({
             "tipo": "warning",
             "titulo": "🟡 DIAGNÓSTICO: Turbidez Elevada",
-            "riesgos": """
-                - **Protección de Patógenos:** Las partículas suspendidas pueden proteger a microorganismos de los desinfectantes como el cloro.
-                - **Ineficiencia de Desinfección:** La turbidez reduce la efectividad de la desinfección UV y química.
-            """,
-            "acciones": """
-                1. **Filtro de Sedimentos o Multimedia:** Instalar un sistema de filtración en el punto de entrada para eliminar las partículas suspendidas.
-                2. **Coagulación/Floculación:** Para turbidez muy alta, se pueden necesitar procesos químicos antes de la filtración.
-            """
+            "riesgos": "- **Protección de Patógenos:** Las partículas protegen a los microorganismos del cloro.\n- **Ineficiencia de Desinfección.**",
+            "acciones": "1. **Filtro de Sedimentos o Multimedia:** Instalar un sistema de filtración para eliminar partículas."
         })
         
     if not (6.0 <= datos["ph"] <= 7.0):
         diagnosticos.append({
             "tipo": "warning",
             "titulo": "🟡 DIAGNÓSTICO: pH Fuera de Rango Óptimo para Desinfección",
-            "riesgos": """
-                - **Baja Eficacia del Cloro:** Si el pH es superior a 7.5, la capacidad desinfectante del cloro se reduce drásticamente.
-                - **Corrosión o Incrustaciones:** Un pH muy bajo (<6.5) puede ser corrosivo para las tuberías metálicas. Un pH muy alto (>8.5) puede causar incrustaciones.
-            """,
-            "acciones": """
-                1. **Ajuste de pH:** Utilizar un sistema de inyección de químicos para ajustar el pH.
-                - Para **subir el pH** (si es ácido): Usar soda ash (carbonato de sodio).
-                - Para **bajar el pH** (si es alcalino): Usar un sistema de inyección de ácido.
-            """
+            "riesgos": "- **Baja Eficacia del Cloro:** Un pH > 7.5 reduce drásticamente el poder desinfectante.\n- **Corrosión o Incrustaciones:** pH < 6.5 es corrosivo; pH > 8.5 causa incrustaciones.",
+            "acciones": "1. **Ajuste de pH:** Utilizar un sistema de inyección de químicos para corregir el pH antes de la desinfección."
         })
 
     # 5. Análisis de Sales y Minerales
@@ -142,34 +137,21 @@ def analizar_calidad_agua(datos):
         diagnosticos.append({
             "tipo": "warning",
             "titulo": "🟡 DIAGNÓSTICO: Agua Muy Dura",
-            "riesgos": """
-                - **Incrustaciones Severas:** Acumulación de sarro en tuberías, calentadores de agua y electrodomésticos, reduciendo su eficiencia y vida útil.
-                - **Bajo Rendimiento de Jabones:** Reduce la efectividad de jabones y detergentes, requiriendo mayor cantidad.
-            """,
-            "acciones": """
-                1. **Instalar un Ablandador de Agua:** Un sistema de intercambio iónico es la solución más común y efectiva para eliminar la dureza.
-                2. **Mantenimiento Preventivo:** Realizar descalcificaciones periódicas de electrodomésticos que usan agua caliente.
-            """
+            "riesgos": "- **Incrustaciones Severas:** Acumulación de sarro en tuberías y equipos.\n- **Bajo Rendimiento de Jabones.**",
+            "acciones": "1. **Instalar un Ablandador de Agua:** Un sistema de intercambio iónico es la solución más efectiva."
         })
         
     if datos["sdt"] > 1500 or datos["sulfatos"] > 250:
         diagnosticos.append({
             "tipo": "warning",
             "titulo": "🟡 DIAGNóstico: Niveles Elevados de Sales Disueltas",
-            "riesgos": """
-                - **Sabor Salino o Amargo:** Altas concentraciones de SDT o sulfatos afectan negativamente el sabor del agua.
-                - **Efecto Laxante:** Los sulfatos por encima de 250-400 ppm pueden tener un efecto laxante.
-            """,
-            "acciones": """
-                1. **Ósmosis Inversa (RO):** Es el método más efectivo para reducir significativamente los SDT y sulfatos. Se puede instalar en el punto de uso (cocina) o para toda la casa.
-                2. **Destilación:** Otra opción para purificar el agua, aunque menos común a nivel residencial por su costo energético.
-            """
+            "riesgos": "- **Sabor Salino o Amargo.**\n- **Efecto Laxante.**",
+            "acciones": "1. **Ósmosis Inversa (RO):** Es el método más efectivo para reducir significativamente los SDT y sulfatos."
         })
         
     return diagnosticos
 
-# --- Clase para Generación de PDF ---
-
+# --- Clase para Generación de PDF (sin cambios) ---
 class PDF(FPDF):
     def header(self):
         self.set_font('Arial', 'B', 12)
@@ -199,26 +181,24 @@ class PDF(FPDF):
             self.set_text_color(220, 50, 50)
         elif tipo == "warning":
             self.set_text_color(255, 193, 7)
-        else:
+        elif tipo == "success":
             self.set_text_color(40, 167, 69)
+        else:
+            self.set_text_color(0, 0, 0)
 
         titulo_pdf = re.sub(r'[^\w\s\.:\-%()]', '', titulo)
-
         self.set_font('Arial', 'B', 11)
         self.multi_cell(0, 5, titulo_pdf)
         self.set_text_color(0, 0, 0)
         self.ln(2)
-
         riesgos_pdf = riesgos.encode('latin-1', 'replace').decode('latin-1')
         acciones_pdf = acciones.encode('latin-1', 'replace').decode('latin-1')
-        
         self.set_font('Arial', 'B', 10)
         self.cell(0, 5, "Riesgos Potenciales:")
         self.ln()
         self.set_font('Arial', '', 10)
         self.multi_cell(0, 5, riesgos_pdf)
         self.ln(2)
-
         self.set_font('Arial', 'B', 10)
         self.cell(0, 5, "Plan de Accion Recomendado:")
         self.ln()
@@ -229,14 +209,12 @@ class PDF(FPDF):
 def generar_pdf(datos_entrada, resultados):
     pdf = PDF()
     pdf.add_page()
-
     pdf.chapter_title("1. Parametros Ingresados por el Usuario")
     body = ""
     for key, value in datos_entrada.items():
         formatted_key = key.replace("_", " ").title()
         body += f"- {formatted_key}: {value}\n"
     pdf.chapter_body(body)
-
     pdf.chapter_title("2. Diagnosticos y Recomendaciones")
     if not resultados:
         pdf.set_text_color(40, 167, 69)
@@ -247,7 +225,6 @@ def generar_pdf(datos_entrada, resultados):
     else:
         for diag in resultados:
             pdf.add_diagnostic_section(diag["tipo"], diag["titulo"], diag["riesgos"], diag["acciones"])
-            
     return bytes(pdf.output())
 
 # --- Interfaz de Usuario (Streamlit) ---
@@ -262,6 +239,7 @@ st.markdown("Introduce los resultados de tu análisis de agua para recibir un di
 with st.sidebar:
     st.header("Parámetros del Agua")
     
+    orp = st.number_input("ORP (Potencial de Óxido-Reducción) en mV", min_value=-500, max_value=1000, value=650, step=10, help="Ideal para desinfección: > +650 mV")
     cloro_libre = st.number_input("Cloro Libre (mg/L)", min_value=0.0, value=1.5, step=0.1, help="Rango ideal: 1.0 - 3.0 mg/L")
     cloro_total = st.number_input("Cloro Total (mg/L)", min_value=0.0, value=1.6, step=0.1, help="Debe ser igual o mayor que el Cloro Libre")
     ph = st.number_input("pH", min_value=0.0, max_value=14.0, value=7.2, step=0.1, help="Rango ideal para desinfección: 6.0 - 7.0")
@@ -282,17 +260,10 @@ if analizar_btn:
         st.error("Error: El Cloro Total no puede ser menor que el Cloro Libre. Por favor, corrija los valores.")
     else:
         datos_usuario = {
-            "cloro_libre": cloro_libre,
-            "cloro_total": cloro_total,
-            "ph": ph,
-            "hierro": hierro,
-            "manganeso": manganeso,
-            "turbidez": turbidez,
-            "dureza_total": dureza_total,
-            "e_coli": e_coli,
-            "coliformes_totales": coliformes_totales,
-            "sdt": sdt,
-            "sulfatos": sulfatos
+            "orp": orp, "cloro_libre": cloro_libre, "cloro_total": cloro_total,
+            "ph": ph, "hierro": hierro, "manganeso": manganeso,
+            "turbidez": turbidez, "dureza_total": dureza_total, "e_coli": e_coli,
+            "coliformes_totales": coliformes_totales, "sdt": sdt, "sulfatos": sulfatos
         }
         
         diagnosticos = analizar_calidad_agua(datos_usuario)
@@ -307,25 +278,38 @@ if 'diagnosticos' in st.session_state:
     if not diagnosticos:
         st.success("✅ ¡Excelente! La calidad de tu agua cumple con los parámetros analizados.")
     else:
-        # Priorizar diagnósticos de tipo 'error'
-        diagnosticos.sort(key=lambda x: 0 if x['tipo'] == 'error' else 1)
-        for i, diag in enumerate(diagnosticos):
+        order = {"error": 0, "warning": 1, "success": 2}
+        diagnosticos.sort(key=lambda x: order.get(x['tipo'], 99))
+        
+        for diag in diagnosticos:
             with st.expander(f"**{diag['titulo']}**", expanded=True):
                 if diag['tipo'] == 'error':
                     st.error(f"**DIAGNÓSTICO:** {diag['titulo']}")
                 elif diag['tipo'] == 'warning':
                     st.warning(f"**DIAGNÓSTICO:** {diag['titulo']}")
+                elif diag['tipo'] == 'success':
+                    st.success(f"**DIAGNÓSTICO:** {diag['titulo']}")
                 
                 st.subheader("Riesgos Potenciales")
                 st.markdown(diag['riesgos'])
-                
                 st.subheader("Plan de Acción Recomendado")
                 st.markdown(diag['acciones'])
     
-    pdf_bytes = generar_pdf(st.session_state['datos_usuario'], diagnosticos)
-    st.download_button(
-        label="📄 Descargar Reporte en PDF",
-        data=pdf_bytes,
-        file_name=f"reporte_calidad_agua_{datetime.now().strftime('%Y%m%d')}.pdf",
-        mime="application/pdf"
-    )
+    if st.session_state.get('datos_usuario'):
+        pdf_bytes = generar_pdf(st.session_state['datos_usuario'], diagnosticos)
+        st.download_button(
+            label="📄 Descargar Reporte en PDF",
+            data=pdf_bytes,
+            file_name=f"reporte_calidad_agua_{datetime.now().strftime('%Y%m%d')}.pdf",
+            mime="application/pdf"
+        )
+    
+    st.divider()
+
+    # --- NUEVO: Nota de Responsabilidad ---
+    st.info("""
+    **Nota de Responsabilidad:** Esta es una herramienta de apoyo para uso en granja. 
+    La utilización de los resultados es de su exclusiva responsabilidad. No sustituye la asesoría profesional 
+    y Albateq S.A. no se hace responsable por las decisiones tomadas con base en la información aquí presentada.
+    """)
+    st.markdown("<div style='text-align: center;'>Desarrollado por la Dirección Técnica de Albateq | dtecnico@albateq.com</div>", unsafe_allow_html=True)
