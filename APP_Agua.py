@@ -53,7 +53,6 @@ def analizar_calidad_agua(datos):
                 2. **Verificar Demanda de Cloro:** Si el cloro se consume rápidamente, puede haber una alta carga orgánica. Considerar un tratamiento de choque (supercloración).
             """
         })
-    # --- LÓGICA AJUSTADA PARA INCLUIR BIOFILM ---
     elif datos["cloro_total"] > 0 and (datos["cloro_libre"] / datos["cloro_total"]) < 0.85:
         cloro_combinado = datos["cloro_total"] - datos["cloro_libre"]
         proporcion_libre = (datos["cloro_libre"] / datos["cloro_total"]) * 100
@@ -73,8 +72,24 @@ def analizar_calidad_agua(datos):
             """
         })
 
-    # 3. Análisis de Metales
-    if datos["hierro"] > 0.3 or datos["manganeso"] > 0.05:
+    # 3. Análisis de Metales (LÓGICA MEJORADA PARA FERROBACTERIAS)
+    if datos["hierro"] > 1.0: # Umbral más alto para diagnóstico específico de ferrobacterias
+        diagnosticos.append({
+            "tipo": "error", # Se eleva a error por la alta probabilidad de infestación bacteriana
+            "titulo": "🔴 DIAGNÓSTICO: Contaminación Severa por Hierro y Ferrobacterias",
+            "riesgos": """
+                - **Infestación por Ferrobacterias:** Niveles tan altos de hierro son el caldo de cultivo ideal para bacterias que se alimentan de él.
+                - **Formación de Biofilm (Baba):** Estas bacterias crean una masa gelatinosa rojiza que obstruye tuberías, bombas y filtros.
+                - **Problemas Graves de Olor, Sabor y Color:** El agua tendrá un sabor metálico intenso, olores a moho o pantano y un color marrón-rojizo.
+                - **Corrosión Acelerada:** La actividad de estas bacterias puede corroer las tuberías metálicas (MIC).
+            """,
+            "acciones": """
+                1. **Desinfección de Choque y Limpieza (ACCIÓN PRIORITARIA):** Antes de filtrar, es crucial eliminar la biomasa. Realizar una supercloración masiva (20-50 mg/L) en todo el sistema (pozo, depósitos, tuberías) y dejar actuar por 12-24 horas. Luego, realizar un purgado (flushing) intenso para expulsar el biofilm muerto.
+                2. **Instalar Sistema de Oxidación/Filtración:** Una vez limpio el sistema, instalar un clorinador seguido de un filtro de arena verde (greensand), zeolita o un filtro catalítico para remover el hierro del agua entrante y prevenir una nueva infestación.
+                3. **Mantenimiento:** Realizar cloraciones de mantenimiento periódicas.
+            """
+        })
+    elif datos["hierro"] > 0.3 or datos["manganeso"] > 0.05: # Diagnóstico general para niveles más bajos
         diagnosticos.append({
             "tipo": "warning",
             "titulo": "🟡 DIAGNÓSTICO: Riesgo por Metales",
@@ -289,6 +304,8 @@ if 'diagnosticos' in st.session_state:
     if not diagnosticos:
         st.success("✅ ¡Excelente! La calidad de tu agua cumple con los parámetros analizados.")
     else:
+        # Priorizar diagnósticos de tipo 'error'
+        diagnosticos.sort(key=lambda x: 0 if x['tipo'] == 'error' else 1)
         for i, diag in enumerate(diagnosticos):
             with st.expander(f"**{diag['titulo']}**", expanded=True):
                 if diag['tipo'] == 'error':
