@@ -72,10 +72,10 @@ def analizar_calidad_agua(datos):
             """
         })
 
-    # 3. Análisis de Metales (LÓGICA MEJORADA PARA FERROBACTERIAS)
-    if datos["hierro"] > 1.0: # Umbral más alto para diagnóstico específico de ferrobacterias
+    # 3. Análisis de Metales
+    if datos["hierro"] > 1.0:
         diagnosticos.append({
-            "tipo": "error", # Se eleva a error por la alta probabilidad de infestación bacteriana
+            "tipo": "error",
             "titulo": "🔴 DIAGNÓSTICO: Contaminación Severa por Hierro y Ferrobacterias",
             "riesgos": """
                 - **Infestación por Ferrobacterias:** Niveles tan altos de hierro son el caldo de cultivo ideal para bacterias que se alimentan de él.
@@ -83,13 +83,17 @@ def analizar_calidad_agua(datos):
                 - **Problemas Graves de Olor, Sabor y Color:** El agua tendrá un sabor metálico intenso, olores a moho o pantano y un color marrón-rojizo.
                 - **Corrosión Acelerada:** La actividad de estas bacterias puede corroer las tuberías metálicas (MIC).
             """,
+            # --- PLAN DE ACCIÓN MÁS DETALLADO ---
             "acciones": """
-                1. **Desinfección de Choque y Limpieza (ACCIÓN PRIORITARIA):** Antes de filtrar, es crucial eliminar la biomasa. Realizar una supercloración masiva (20-50 mg/L) en todo el sistema (pozo, depósitos, tuberías) y dejar actuar por 12-24 horas. Luego, realizar un purgado (flushing) intenso para expulsar el biofilm muerto.
-                2. **Instalar Sistema de Oxidación/Filtración:** Una vez limpio el sistema, instalar un clorinador seguido de un filtro de arena verde (greensand), zeolita o un filtro catalítico para remover el hierro del agua entrante y prevenir una nueva infestación.
-                3. **Mantenimiento:** Realizar cloraciones de mantenimiento periódicas.
+                1. **Desinfección de Choque y Limpieza (ACCIÓN PRIORITARIA):** Antes de filtrar, es crucial eliminar la biomasa. Realizar una supercloración masiva (20-50 mg/L) en todo el sistema y dejar actuar por 12-24 horas. Luego, realizar un purgado (flushing) intenso para expulsar el biofilm muerto.
+                2. **Instalar Tratamiento de Cloración Única (Pre-Filtro):**
+                   - **Instalación:** Colocar un dosificador de cloro **antes** del sistema de filtración.
+                   - **Objetivo:** Dosificar cloro hasta superar el **"punto de ruptura"**. Esto significa que la dosis debe ser suficiente para **(a)** oxidar todo el hierro, **(b)** matar las bacterias y **(c)** dejar un residual de cloro libre de 1-2 mg/L **después** del filtro para la desinfección final.
+                   - **Filtración:** Utilizar un filtro apropiado (arena verde, zeolita catalítica, etc.) para remover el hierro ya oxidado.
+                3. **Mantenimiento:** Realizar cloraciones de mantenimiento y retrolavados periódicos del filtro para evitar la re-acumulación.
             """
         })
-    elif datos["hierro"] > 0.3 or datos["manganeso"] > 0.05: # Diagnóstico general para niveles más bajos
+    elif datos["hierro"] > 0.3 or datos["manganeso"] > 0.05:
         diagnosticos.append({
             "tipo": "warning",
             "titulo": "🟡 DIAGNÓSTICO: Riesgo por Metales",
