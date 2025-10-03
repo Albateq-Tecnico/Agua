@@ -53,22 +53,23 @@ def analizar_calidad_agua(datos):
                 2. **Verificar Demanda de Cloro:** Si el cloro se consume rápidamente, puede haber una alta carga orgánica. Considerar un tratamiento de choque (supercloración).
             """
         })
+    # --- LÓGICA AJUSTADA PARA INCLUIR BIOFILM ---
     elif datos["cloro_total"] > 0 and (datos["cloro_libre"] / datos["cloro_total"]) < 0.85:
         cloro_combinado = datos["cloro_total"] - datos["cloro_libre"]
         proporcion_libre = (datos["cloro_libre"] / datos["cloro_total"]) * 100
         diagnosticos.append({
             "tipo": "warning",
-            "titulo": "🟡 DIAGNÓSTICO: Alta Demanda de Cloro (Baja Proporción de Cloro Libre)",
+            "titulo": "🟡 DIAGNÓSTICO: Alta Demanda de Cloro (Posible Biofilm)",
             "riesgos": f"""
                 - **Proporción de Cloro Libre:** {proporcion_libre:.1f}% (Ideal: > 85%).
                 - **Nivel de Cloro Combinado:** {cloro_combinado:.2f} mg/L.
-                - **Ineficiencia del Desinfectante:** Una gran parte de su cloro está "combinado" (inactivo), lo que indica la presencia de contaminantes que lo están consumiendo.
-                - **Olores y Sabores Desagradables:** El cloro combinado (cloraminas) es la principal causa del "olor a cloro".
+                - **Causa Probable:** Estos valores son un fuerte indicio de **biofilm** en las tuberías o de alta materia orgánica en el agua.
+                - **Ineficiencia y Riesgo:** El biofilm consume el desinfectante, protege a bacterias patógenas (como *Legionella*) y puede causar olores y sabores desagradables.
             """,
             "acciones": """
-                1. **Supercloración (Breakpoint Chlorination):** Aplicar una dosis alta de cloro para oxidar completamente los contaminantes y convertir el cloro combinado en cloro libre.
-                2. **Investigar la Fuente de Contaminación:** Identificar la causa de la alta demanda de cloro (materia orgánica, algas, amoníaco, etc.).
-                3. **Filtración Previa:** Considere instalar un filtro de carbón activado o un filtro multimedia antes de la cloración para reducir la carga orgánica.
+                1. **Supercloración de Choque:** Aplicar una dosis de cloro alta y sostenida (ej. >10 mg/L durante varias horas) para penetrar y eliminar el biofilm de las tuberías y depósitos.
+                2. **Investigar el Sistema:** Inspeccionar depósitos y puntos muertos de la red. Considerar una limpieza física (cepillado, flushing de alta velocidad) si el problema persiste.
+                3. **Filtración Previa:** Si la causa es materia orgánica en la fuente, instalar un filtro de carbón activado o multimedia antes de la cloración.
             """
         })
 
@@ -79,7 +80,7 @@ def analizar_calidad_agua(datos):
             "titulo": "🟡 DIAGNÓSTICO: Riesgo por Metales",
             "riesgos": """
                 - **Problemas Estéticos:** Puede causar coloración (rojiza/marrón), sabor metálico y manchas en ropa y sanitarios.
-                - **Acumulación en Tuberías:** El hierro y manganeso pueden acumularse, reduciendo la presión del agua y favoreciendo el crecimiento de bacterias.
+                - **Acumulación en Tuberías:** El hierro y manganeso pueden acumularse, reduciendo la presión del agua y favoreciendo el crecimiento de bacterias y biofilm.
             """,
             "acciones": """
                 1. **Instalar Filtro de Sedimentos:** Para partículas más grandes de óxido de hierro.
@@ -183,8 +184,7 @@ class PDF(FPDF):
         else:
             self.set_text_color(40, 167, 69)
 
-        # *** SOLUCIÓN: Escapar el guion '-' en la expresión regular ***
-        titulo_pdf = re.sub(r'[^\w\s\.:\-%]', '', titulo)
+        titulo_pdf = re.sub(r'[^\w\s\.:\-%()]', '', titulo)
 
         self.set_font('Arial', 'B', 11)
         self.multi_cell(0, 5, titulo_pdf)
