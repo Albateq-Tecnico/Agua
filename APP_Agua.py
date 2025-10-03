@@ -239,9 +239,9 @@ def generar_pdf(datos_entrada, resultados):
 # --- Interfaz de Usuario (Streamlit) ---
 # ** NUEVO: Añadir logo **
 try:
-    st.image("logo_PEQ.png", width=100)
+    st.image("log_PEQ.png", width=100)
 except FileNotFoundError:
-    st.warning("No se encontró el archivo 'logo_PEQ.png'. Por favor, asegúrese de que esté en el directorio correcto.")
+    st.warning("No se encontró el archivo 'log_PEQ.png'. Por favor, asegúrese de que esté en el directorio correcto.")
 
 st.title("💧 Asistente de Calidad del Agua")
 st.markdown("Introduce los resultados de tu análisis de agua para recibir un diagnóstico instantáneo y un plan de acción.")
