@@ -227,12 +227,11 @@ def generar_pdf(datos_entrada, resultados):
         for diag in resultados:
             pdf.add_diagnostic_section(diag["tipo"], diag["titulo"], diag["riesgos"], diag["acciones"])
             
-    # *** SOLUCIÓN: Retornar los bytes directamente sin .encode() ***
-    return pdf.output()
+    # *** SOLUCIÓN: Convertir el 'bytearray' a 'bytes' ***
+    return bytes(pdf.output())
 
 # --- Interfaz de Usuario (Streamlit) ---
 try:
-    # *** CORRECCIÓN: Nombre del archivo de imagen actualizado ***
     st.image("log_PEQ.png", width=100)
 except FileNotFoundError:
     st.warning("No se encontró el archivo 'log_PEQ.png'. Por favor, asegúrese de que esté en el directorio del repositorio.")
@@ -306,5 +305,5 @@ if 'diagnosticos' in st.session_state:
         label="📄 Descargar Reporte en PDF",
         data=pdf_bytes,
         file_name=f"reporte_calidad_agua_{datetime.now().strftime('%Y%m%d')}.pdf",
-        mime="application/pdf" # Mime type actualizado para mayor compatibilidad
+        mime="application/pdf"
     )
