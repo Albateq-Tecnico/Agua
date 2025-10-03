@@ -39,8 +39,7 @@ def analizar_calidad_agua(datos):
             """
         })
 
-    # 2. Análisis de Desinfección por Cloro
-    cloro_combinado = datos["cloro_total"] - datos["cloro_libre"]
+    # 2. Análisis de Desinfección por Cloro (LÓGICA MEJORADA)
     if datos["cloro_libre"] < 1.0:
         diagnosticos.append({
             "tipo": "warning",
@@ -54,23 +53,28 @@ def analizar_calidad_agua(datos):
                 2. **Verificar Demanda de Cloro:** Si el cloro se consume rápidamente, puede haber una alta carga orgánica. Considerar un tratamiento de choque (supercloración).
             """
         })
-    elif cloro_combinado > 0.5:
+    # --- LÓGICA AJUSTADA ---
+    # Se activa si el cloro libre es menos del 85% del cloro total.
+    elif datos["cloro_total"] > 0 and (datos["cloro_libre"] / datos["cloro_total"]) < 0.85:
+        cloro_combinado = datos["cloro_total"] - datos["cloro_libre"]
+        proporcion_libre = (datos["cloro_libre"] / datos["cloro_total"]) * 100
         diagnosticos.append({
             "tipo": "warning",
-            "titulo": "🟡 DIAGNÓSTICO: Alta Demanda de Cloro (Cloro Combinado Elevado)",
-            "riesgos": """
-                - **Desinfección Reducida:** El cloro combinado (cloraminas) tiene un poder desinfectante mucho más bajo que el cloro libre.
-                - **Olores y Sabores Desagradables:** Las cloraminas son la principal causa del "olor a piscina" en el agua.
-                - **Indica Contaminación:** Sugiere que el cloro está reaccionando con materia orgánica o amoníaco en el agua.
+            "titulo": "🟡 DIAGNÓSTICO: Alta Demanda de Cloro (Baja Proporción de Cloro Libre)",
+            "riesgos": f"""
+                - **Proporción de Cloro Libre:** {proporcion_libre:.1f}% (Ideal: > 85%).
+                - **Nivel de Cloro Combinado:** {cloro_combinado:.2f} mg/L.
+                - **Ineficiencia del Desinfectante:** Una gran parte de su cloro está "combinado" (inactivo), lo que indica la presencia de contaminantes que lo están consumiendo.
+                - **Olores y Sabores Desagradables:** El cloro combinado (cloraminas) es la principal causa del "olor a cloro".
             """,
             "acciones": """
                 1. **Supercloración (Breakpoint Chlorination):** Aplicar una dosis alta de cloro para oxidar completamente los contaminantes y convertir el cloro combinado en cloro libre.
-                2. **Investigar la Fuente:** Identificar la causa de la alta demanda de cloro (materia orgánica, algas, etc.).
-                3. **Filtración Previa:** Considerar instalar un filtro de carbón activado o un filtro multimedia antes de la cloración para reducir la carga orgánica.
+                2. **Investigar la Fuente de Contaminación:** Identificar la causa de la alta demanda de cloro (materia orgánica, algas, amoníaco, etc.).
+                3. **Filtración Previa:** Considere instalar un filtro de carbón activado o un filtro multimedia antes de la cloración para reducir la carga orgánica.
             """
         })
 
-    # 3. Análisis de Metales
+    # 3. Análisis de Metales (y el resto del código sigue igual)...
     if datos["hierro"] > 0.3 or datos["manganeso"] > 0.05:
         diagnosticos.append({
             "tipo": "warning",
@@ -86,7 +90,6 @@ def analizar_calidad_agua(datos):
             """
         })
         
-    # 4. Análisis de Parámetros Físico-Químicos
     if datos["turbidez"] > 1.0:
         diagnosticos.append({
             "tipo": "warning",
@@ -116,7 +119,6 @@ def analizar_calidad_agua(datos):
             """
         })
 
-    # 5. Análisis de Sales y Minerales
     if datos["dureza_total"] > 180:
         diagnosticos.append({
             "tipo": "warning",
@@ -146,9 +148,9 @@ def analizar_calidad_agua(datos):
         })
         
     return diagnosticos
-
-# --- Clase para Generación de PDF ---
-
+#
+# --- El resto del código (clase PDF, interfaz de Streamlit) permanece sin cambios ---
+#
 class PDF(FPDF):
     def header(self):
         self.set_font('Arial', 'B', 12)
@@ -181,7 +183,7 @@ class PDF(FPDF):
         else:
             self.set_text_color(40, 167, 69)
 
-        titulo_pdf = re.sub(r'[^\w\s\.:-]', '', titulo)
+        titulo_pdf = re.sub(r'[^\w\s\.:-%]', '', titulo)
 
         self.set_font('Arial', 'B', 11)
         self.multi_cell(0, 5, titulo_pdf)
@@ -227,10 +229,8 @@ def generar_pdf(datos_entrada, resultados):
         for diag in resultados:
             pdf.add_diagnostic_section(diag["tipo"], diag["titulo"], diag["riesgos"], diag["acciones"])
             
-    # *** SOLUCIÓN: Convertir el 'bytearray' a 'bytes' ***
     return bytes(pdf.output())
 
-# --- Interfaz de Usuario (Streamlit) ---
 try:
     st.image("log_PEQ.png", width=100)
 except FileNotFoundError:
@@ -256,7 +256,6 @@ with st.sidebar:
 
     analizar_btn = st.button("Analizar Calidad del Agua", type="primary", use_container_width=True)
 
-# --- Lógica de Visualización de Resultados ---
 if analizar_btn:
     if cloro_total < cloro_libre:
         st.error("Error: El Cloro Total no puede ser menor que el Cloro Libre. Por favor, corrija los valores.")
