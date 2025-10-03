@@ -147,7 +147,7 @@ def analizar_calidad_agua(datos):
         
     return diagnosticos
 
-# --- Clase para Generación de PDF (SOLUCIÓN AL ERROR UNICODE) ---
+# --- Clase para Generación de PDF ---
 
 class PDF(FPDF):
     def header(self):
@@ -169,25 +169,23 @@ class PDF(FPDF):
 
     def chapter_body(self, body):
         self.set_font('Arial', '', 10)
-        # Reemplazar caracteres unicode no soportados
         body_cleaned = body.encode('latin-1', 'replace').decode('latin-1')
         self.multi_cell(0, 5, body_cleaned)
         self.ln()
 
     def add_diagnostic_section(self, tipo, titulo, riesgos, acciones):
         if tipo == "error":
-            self.set_text_color(220, 50, 50)  # Rojo
+            self.set_text_color(220, 50, 50)
         elif tipo == "warning":
-            self.set_text_color(255, 193, 7) # Ámbar
+            self.set_text_color(255, 193, 7)
         else:
-            self.set_text_color(40, 167, 69) # Verde
+            self.set_text_color(40, 167, 69)
 
-        # *** SOLUCIÓN: Limpiar el título de emojis para el PDF ***
         titulo_pdf = re.sub(r'[^\w\s\.:-]', '', titulo)
 
         self.set_font('Arial', 'B', 11)
         self.multi_cell(0, 5, titulo_pdf)
-        self.set_text_color(0, 0, 0) # Reset color
+        self.set_text_color(0, 0, 0)
         self.ln(2)
 
         riesgos_pdf = riesgos.encode('latin-1', 'replace').decode('latin-1')
@@ -207,12 +205,10 @@ class PDF(FPDF):
         self.multi_cell(0, 5, acciones_pdf)
         self.ln(5)
 
-
 def generar_pdf(datos_entrada, resultados):
     pdf = PDF()
     pdf.add_page()
 
-    # Sección de datos de entrada
     pdf.chapter_title("1. Parametros Ingresados por el Usuario")
     body = ""
     for key, value in datos_entrada.items():
@@ -220,10 +216,9 @@ def generar_pdf(datos_entrada, resultados):
         body += f"- {formatted_key}: {value}\n"
     pdf.chapter_body(body)
 
-    # Sección de diagnósticos
     pdf.chapter_title("2. Diagnosticos y Recomendaciones")
     if not resultados:
-        pdf.set_text_color(40, 167, 69) # Verde
+        pdf.set_text_color(40, 167, 69)
         pdf.set_font('Arial', 'B', 12)
         mensaje_exito = "¡Excelente! La calidad de tu agua cumple con los parametros analizados."
         pdf.multi_cell(0, 5, mensaje_exito)
@@ -232,16 +227,15 @@ def generar_pdf(datos_entrada, resultados):
         for diag in resultados:
             pdf.add_diagnostic_section(diag["tipo"], diag["titulo"], diag["riesgos"], diag["acciones"])
             
-    # Guarda el PDF en memoria
-    return pdf.output(dest='S').encode('latin1')
-
+    # *** SOLUCIÓN: Retornar los bytes directamente sin .encode() ***
+    return pdf.output()
 
 # --- Interfaz de Usuario (Streamlit) ---
-# ** NUEVO: Añadir logo **
 try:
+    # *** CORRECCIÓN: Nombre del archivo de imagen actualizado ***
     st.image("log_PEQ.png", width=100)
 except FileNotFoundError:
-    st.warning("No se encontró el archivo 'log_PEQ.png'. Por favor, asegúrese de que esté en el directorio correcto.")
+    st.warning("No se encontró el archivo 'log_PEQ.png'. Por favor, asegúrese de que esté en el directorio del repositorio.")
 
 st.title("💧 Asistente de Calidad del Agua")
 st.markdown("Introduce los resultados de tu análisis de agua para recibir un diagnóstico instantáneo y un plan de acción.")
@@ -249,7 +243,6 @@ st.markdown("Introduce los resultados de tu análisis de agua para recibir un di
 with st.sidebar:
     st.header("Parámetros del Agua")
     
-    # --- Widgets de Entrada (CON CAMPOS DE CLORO) ---
     cloro_libre = st.number_input("Cloro Libre (mg/L)", min_value=0.0, value=1.5, step=0.1, help="Rango ideal: 1.0 - 3.0 mg/L")
     cloro_total = st.number_input("Cloro Total (mg/L)", min_value=0.0, value=1.6, step=0.1, help="Debe ser igual o mayor que el Cloro Libre")
     ph = st.number_input("pH", min_value=0.0, max_value=14.0, value=7.2, step=0.1, help="Rango ideal para desinfección: 6.0 - 7.0")
@@ -264,10 +257,8 @@ with st.sidebar:
 
     analizar_btn = st.button("Analizar Calidad del Agua", type="primary", use_container_width=True)
 
-
 # --- Lógica de Visualización de Resultados ---
 if analizar_btn:
-    # ** NUEVO: Validación de datos de cloro **
     if cloro_total < cloro_libre:
         st.error("Error: El Cloro Total no puede ser menor que el Cloro Libre. Por favor, corrija los valores.")
     else:
@@ -310,11 +301,10 @@ if 'diagnosticos' in st.session_state:
                 st.subheader("Plan de Acción Recomendado")
                 st.markdown(diag['acciones'])
     
-    # Botón de descarga de PDF
     pdf_bytes = generar_pdf(st.session_state['datos_usuario'], diagnosticos)
     st.download_button(
         label="📄 Descargar Reporte en PDF",
         data=pdf_bytes,
         file_name=f"reporte_calidad_agua_{datetime.now().strftime('%Y%m%d')}.pdf",
-        mime="application/octet-stream"
+        mime="application/pdf" # Mime type actualizado para mayor compatibilidad
     )
