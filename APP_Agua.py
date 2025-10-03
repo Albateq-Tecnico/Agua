@@ -7,7 +7,7 @@ import re
 # --- Configuración de la Página ---
 st.set_page_config(
     page_title="Asistente de Calidad del Agua",
-    page_icon="💧",
+    page_icon="logo_albateq-removebg-preview.png",
     layout="centered",
     initial_sidebar_state="expanded"
 )
@@ -83,9 +83,8 @@ def analizar_calidad_agua(datos):
                 - **Problemas Graves de Olor, Sabor y Color:** El agua tendrá un sabor metálico intenso, olores a moho o pantano y un color marrón-rojizo.
                 - **Corrosión Acelerada:** La actividad de estas bacterias puede corroer las tuberías metálicas (MIC).
             """,
-            # --- PLAN DE ACCIÓN MÁS DETALLADO ---
             "acciones": """
-                1. **Desinfección de Choque y Limpieza (ACCIÓN PRIORITARIA):** Antes de filtrar, es crucial eliminar la biomasa. Realizar una supercloración masiva (20-50 mg/L) en todo el sistema y dejar actuar por 12-24 horas. Luego, realizar un purgado (flushing) intenso para expulsar el biofilm muerto.
+                1. **Desinfección de Choque y Limpieza (ACCIÓN PRIORITARIA):** Antes de filtrar, es crucial eliminar la biomasa. Realizar una supercloración masiva (20-50 mg/L) en todo el sistema (pozo, depósitos, tuberías) y dejar actuar por 12-24 horas. Luego, realizar un purgado (flushing) intenso para expulsar el biofilm muerto.
                 2. **Instalar Tratamiento de Cloración Única (Pre-Filtro):**
                    - **Instalación:** Colocar un dosificador de cloro **antes** del sistema de filtración.
                    - **Objetivo:** Dosificar cloro hasta superar el **"punto de ruptura"**. Esto significa que la dosis debe ser suficiente para **(a)** oxidar todo el hierro, **(b)** matar las bacterias y **(c)** dejar un residual de cloro libre de 1-2 mg/L **después** del filtro para la desinfección final.
@@ -257,7 +256,7 @@ try:
 except FileNotFoundError:
     st.warning("No se encontró el archivo 'log_PEQ.png'. Por favor, asegúrese de que esté en el directorio del repositorio.")
 
-st.title("💧 Asistente de Calidad del Agua")
+st.title("Asistente de Calidad del Agua")
 st.markdown("Introduce los resultados de tu análisis de agua para recibir un diagnóstico instantáneo y un plan de acción.")
 
 with st.sidebar:
