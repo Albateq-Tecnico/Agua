@@ -113,18 +113,14 @@ def analizar_calidad_agua(datos):
         diagnosticos.append({"tipo": "warning", "titulo": "🟡 DIAGNóstico: Niveles Elevados de Sales Disueltas", "riesgos": "- **Sabor Salino o Amargo.**\n- **Efecto Laxante.**", "acciones": "1. **Ósmosis Inversa (RO).**"})
     return diagnosticos
 
-# --- Clases y Funciones de PDF (CON AJUSTES) ---
+# --- Clases y Funciones de PDF ---
 class PDF(FPDF):
     def header(self):
-        # --- NUEVO: Añadir logo al encabezado del PDF ---
         try:
-            # Posición: 10mm desde la izquierda, 8mm desde arriba, 33mm de ancho
             self.image('log_agua_alb.png', 10, 8, 33)
         except FileNotFoundError:
-            pass # Si no encuentra el logo, no detiene la creación del PDF
-        
+            pass 
         self.set_font('Arial', 'B', 15)
-        # Mover el título a la derecha para no superponerse con el logo
         self.cell(80) 
         self.cell(30, 10, 'Reporte de Calidad del Agua', 0, 0, 'C')
         self.set_font('Arial', '', 8)
@@ -152,10 +148,8 @@ class PDF(FPDF):
         self.set_font('Arial', 'B', 10); self.cell(0, 5, "Plan de Accion Recomendado:"); self.ln(); self.set_font('Arial', '', 10); self.multi_cell(0, 5, acciones_pdf); self.ln(5)
 
 def generar_pdf(datos_entrada, resultados):
-    pdf = PDF()
-    pdf.add_page()
-    pdf.chapter_title("1. Parametros Ingresados por el Usuario")
-    body = ""
+    pdf = PDF(); pdf.add_page(); pdf.chapter_title("1. Parametros Ingresados por el Usuario")
+    body = ""; 
     for key, value in datos_entrada.items(): body += f"- {key.replace('_', ' ').title()}: {value}\n"
     pdf.chapter_body(body)
     pdf.chapter_title("2. Diagnosticos y Recomendaciones")
@@ -164,20 +158,11 @@ def generar_pdf(datos_entrada, resultados):
         pdf.multi_cell(0, 5, mensaje_exito); pdf.set_text_color(0, 0, 0)
     else:
         for diag in resultados: pdf.add_diagnostic_section(diag["tipo"], diag["titulo"], diag["riesgos"], diag["acciones"])
-    
-    # --- NUEVO: Añadir nota de responsabilidad al final del PDF ---
-    pdf.ln(10) # Espacio antes de la nota
-    pdf.set_font('Arial', 'I', 8)
-    pdf.set_text_color(128, 128, 128) # Color gris para la nota
-    disclaimer_text = (
-        "Nota de Responsabilidad: Esta es una herramienta de apoyo para uso en granja. "
-        "La utilización de los resultados es de su exclusiva responsabilidad. No sustituye la asesoría profesional "
-        "y Albateq S.A. no se hace responsable por las decisiones tomadas con base en la información aquí presentada.\n\n"
-        "Desarrollado por la Dirección Técnica de Albateq | dtecnico@albateq.com"
-    )
+    pdf.ln(10)
+    pdf.set_font('Arial', 'I', 8); pdf.set_text_color(128, 128, 128)
+    disclaimer_text = ("Nota de Responsabilidad: Esta es una herramienta de apoyo para uso en granja. " "La utilización de los resultados es de su exclusiva responsabilidad. No sustituye la asesoría profesional " "y Albateq S.A. no se hace responsable por las decisiones tomadas con base en la información aquí presentada.\n\n" "Desarrollado por la Dirección Técnica de Albateq | dtecnico@albateq.com")
     disclaimer_cleaned = disclaimer_text.encode('latin-1', 'replace').decode('latin-1')
     pdf.multi_cell(0, 4, disclaimer_cleaned, align='C')
-
     return bytes(pdf.output())
 
 # --- Interfaz de Usuario (Streamlit) ---
@@ -189,7 +174,8 @@ st.markdown("Introduce los resultados de tu análisis de agua para recibir un di
 
 with st.sidebar:
     try:
-        st.image("log_agua_alb.png", use_column_width=True)
+        # --- LÍNEA CORREGIDA ---
+        st.image("log_agua_alb.png", use_container_width=True)
     except FileNotFoundError:
         st.warning("No se encontró 'log_agua_alb.png'.")
     
@@ -227,12 +213,7 @@ with st.sidebar:
 if analizar_btn:
     if cloro_total < cloro_libre: st.error("Error: El Cloro Total no puede ser menor que el Cloro Libre.")
     else:
-        datos_usuario = {
-            "orp": orp, "cloro_libre": cloro_libre, "cloro_total": cloro_total, "ph": ph, 
-            "nitratos": nitratos, "nitritos": nitritos, "hierro": hierro, "manganeso": manganeso, 
-            "turbidez": turbidez, "color_aparente": color_aparente, "dureza_total": dureza_total, 
-            "sdt": sdt, "sulfatos": sulfatos, "e_coli": e_coli, "coliformes_totales": coliformes_totales
-        }
+        datos_usuario = {"orp": orp, "cloro_libre": cloro_libre, "cloro_total": cloro_total, "ph": ph, "nitratos": nitratos, "nitritos": nitritos, "hierro": hierro, "manganeso": manganeso, "turbidez": turbidez, "color_aparente": color_aparente, "dureza_total": dureza_total, "sdt": sdt, "sulfatos": sulfatos, "e_coli": e_coli, "coliformes_totales": coliformes_totales}
         diagnosticos = analizar_calidad_agua(datos_usuario)
         st.session_state['diagnosticos'] = diagnosticos
         st.session_state['datos_usuario'] = datos_usuario
@@ -256,4 +237,4 @@ if 'diagnosticos' in st.session_state:
         st.download_button("📄 Descargar Reporte en PDF", pdf_bytes, f"reporte_calidad_agua_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf")
     st.divider()
     st.info("""**Nota de Responsabilidad:** Esta es una herramienta de apoyo para uso en granja. La utilización de los resultados es de su exclusiva responsabilidad. No sustituye la asesoría profesional y Albateq S.A. no se hace responsable por las decisiones tomadas con base en la información aquí presentada.""")
-    st.markdown("<div style='text-align: center; font-size: small;'>Desarrollado por la Dirección Técnica de Albateq | dtecnico@albateq.com</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; font-size: small;'>Desarrollado por la Dirección Técnica de Albateq | dtecnico@albateq.com con el apoyo y aportes de Diana Paola Aristizabals MVZ UC</div>", unsafe_allow_html=True)
