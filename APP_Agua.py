@@ -61,7 +61,6 @@ def analizar_calidad_agua(datos):
             "acciones": """
                 1. **VERIFICAR EL SENSOR DE ORP:** Limpiar y recalibrar la sonda de ORP es la primera acción recomendada.
                 2. **Revisar Dosificación:** Si la lectura es correcta, considere reducir ligeramente la dosificación del oxidante para operar en un rango seguro y eficaz (+650 a +800 mV).
-                3. **Inspeccionar Equipos:** Vigilar de cerca los componentes del sistema de agua en busca de signos de desgaste o fugas.
             """
         })
     elif datos["orp"] >= 650:
@@ -104,20 +103,20 @@ def analizar_calidad_agua(datos):
             """
         })
 
-    # --- NUEVO: Análisis de Nitratos y Nitritos ---
+    # --- Análisis de Nitratos y Nitritos ---
     if datos["nitratos"] > 10 or datos["nitritos"] > 1:
         diagnosticos.append({
             "tipo": "error",
             "titulo": "🚨 DIAGNÓSTICO: Contaminación por Nitratos/Nitritos",
             "riesgos": """
-                - **Riesgo de Metahemoglobinemia:** Limita la capacidad de la sangre para transportar oxígeno, causando problemas de crecimiento, estrés respiratorio y baja productividad. Es especialmente peligroso para animales jóvenes.
-                - **Indicador de Contaminación:** Su presencia sugiere una contaminación del pozo o fuente de agua por fertilizantes, estiércol o aguas residuales.
-                - **Nitritos (>1 mg/L):** La presencia de nitritos es particularmente grave, ya que son más tóxicos e indican una contaminación reciente y activa.
+                - **Riesgo de Metahemoglobinemia:** Limita la capacidad de la sangre para transportar oxígeno, causando problemas de crecimiento y estrés respiratorio.
+                - **Indicador de Contaminación:** Sugiere contaminación por fertilizantes o desechos animales.
+                - **Nitritos (>1 mg/L):** Su presencia es particularmente grave e indica contaminación reciente y activa.
             """,
             "acciones": """
-                1. **Buscar una Fuente de Agua Alternativa INMEDIATAMENTE** para los animales, especialmente los más jóvenes.
-                2. **Identificar la Fuente de Contaminación:** Inspeccionar el pozo. Asegurarse de que no haya escorrentía de campos fertilizados, corrales o sistemas sépticos cercanos.
-                3. **Tratamiento a Largo Plazo:** La solución más efectiva para eliminar nitratos es un sistema de **Ósmosis Inversa (RO)** o de **Intercambio Iónico** (resinas de aniones).
+                1. **Buscar una Fuente de Agua Alternativa INMEDIATAMENTE.**
+                2. **Identificar la Fuente de Contaminación:** Inspeccionar el pozo y sus alrededores.
+                3. **Tratamiento a Largo Plazo:** Considerar **Ósmosis Inversa (RO)** o **Intercambio Iónico**.
             """
         })
 
@@ -139,6 +138,24 @@ def analizar_calidad_agua(datos):
     elif datos["hierro"] > 0.3 or datos["manganeso"] > 0.05:
         diagnosticos.append({"tipo": "warning", "titulo": "🟡 DIAGNÓSTICO: Riesgo por Metales", "riesgos": "- **Problemas Estéticos.**\n- **Acumulación en Tuberías.**", "acciones": "1. **Sistema de Oxidación/Filtración.**"})
         
+    # --- NUEVO: Análisis de Color Aparente ---
+    if datos["color_aparente"] > 15:
+        riesgo_color = "- **Rechazo por parte de los animales:** El color es uno de los principales factores estéticos que provocan un menor consumo de agua.\n"
+        # Lógica inteligente para determinar la causa
+        if datos["turbidez"] > 1.0 or datos["hierro"] > 0.3:
+            riesgo_color += "- **Causa Probable:** Sólidos suspendidos (arcilla, limo, hierro oxidado)."
+            accion_color = "1. **Filtración Física:** Utilizar un filtro de sedimentos o un filtro multimedia para eliminar las partículas que causan el color."
+        else:
+            riesgo_color += "- **Causa Probable:** Materia orgánica disuelta (taninos)."
+            accion_color = "1. **Filtración con Carbón Activado:** El carbón activado es muy efectivo para adsorber los compuestos orgánicos que causan color.\n2. **Oxidación Química:** La inyección de cloro u ozono puede romper las moléculas de taninos, eliminando el color (requiere filtración posterior)."
+        
+        diagnosticos.append({
+            "tipo": "warning",
+            "titulo": "🟡 DIAGNÓSTICO: Color Elevado",
+            "riesgos": riesgo_color,
+            "acciones": accion_color
+        })
+
     # 4. Parámetros Físico-Químicos
     if datos["turbidez"] > 1.0:
         diagnosticos.append({"tipo": "warning", "titulo": "🟡 DIAGNÓSTICO: Turbidez Elevada", "riesgos": "- **Protección de Patógenos.**", "acciones": "1. **Filtro de Sedimentos o Multimedia.**"})
@@ -198,14 +215,15 @@ with st.sidebar:
     hierro = st.number_input("Hierro (Fe) en mg/L", 0.0, value=0.1, step=0.1, help="Valor típico: < 0.3 mg/L")
     manganeso = st.number_input("Manganeso (Mn) en mg/L", 0.0, value=0.02, step=0.01, help="Valor típico: < 0.05 mg/L")
     turbidez = st.number_input("Turbidez en NTU", 0.0, 0.5, 0.5, help="Valor típico: < 1 NTU")
+    
+    # --- NUEVO: Widget para Color Aparente ---
+    color_aparente = st.number_input("Color Aparente (U. Pt-Co)", min_value=0, value=10, step=5, help="Límite estético: 15 U. Pt-Co")
+    
     dureza_total = st.number_input("Dureza Total (CaCO₃) en mg/L", 0, 120, 10, help="Agua muy dura: > 180 mg/L")
     sdt = st.number_input("Sólidos Disueltos Totales (SDT) en ppm", 0, 300, 50, help="Problemas digestivos: > 1500 ppm")
     sulfatos = st.number_input("Sulfatos (SO₄²⁻) en ppm", 0, 50, 10, help="Límite recomendado: < 250 ppm")
-    
-    # --- NUEVO: Widgets para Nitratos y Nitritos ---
     nitratos = st.number_input("Nitratos (NO₃⁻) en ppm", min_value=0.0, value=5.0, step=1.0, help="Límite máximo: 10 ppm")
     nitritos = st.number_input("Nitritos (NO₂⁻) en ppm", min_value=0.0, value=0.0, step=0.1, help="Límite máximo: 1 ppm")
-
     st.divider()
     e_coli = st.number_input("E. coli (UFC/100mL)", min_value=0, value=0, step=1, help="Debe ser 0 para agua potable")
     coliformes_totales = st.number_input("Coliformes Totales (UFC/100mL)", min_value=0, value=0, step=1, help="Debe ser 0 para agua potable")
@@ -222,7 +240,8 @@ if analizar_btn:
             "ph": ph, "hierro": hierro, "manganeso": manganeso,
             "turbidez": turbidez, "dureza_total": dureza_total, "e_coli": e_coli,
             "coliformes_totales": coliformes_totales, "sdt": sdt, "sulfatos": sulfatos,
-            "nitratos": nitratos, "nitritos": nitritos # <-- Añadidos al diccionario
+            "nitratos": nitratos, "nitritos": nitritos,
+            "color_aparente": color_aparente # <-- Añadido al diccionario
         }
         diagnosticos = analizar_calidad_agua(datos_usuario)
         st.session_state['diagnosticos'] = diagnosticos
@@ -239,7 +258,7 @@ if 'diagnosticos' in st.session_state:
             with st.expander(f"**{diag['titulo']}**", expanded=True):
                 if diag['tipo'] == 'error': st.error(f"**DIAGNÓSTICO:** {diag['titulo']}")
                 elif diag['tipo'] == 'warning': st.warning(f"**DIAGNÓSTICO:** {diag['titulo']}")
-                elif diag['tipo'] == 'success': st.success(f"**DIAGNÓSTICO:** {diag['titulo']}")
+                elif diag['tipo'] == 'success': st.success(f"**DIAGNÓ..**")
                 st.subheader("Riesgos Potenciales"); st.markdown(diag['riesgos'], unsafe_allow_html=True)
                 st.subheader("Plan de Acción Recomendado"); st.markdown(diag['acciones'], unsafe_allow_html=True)
     if st.session_state.get('datos_usuario'):
