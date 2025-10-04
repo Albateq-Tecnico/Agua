@@ -25,14 +25,13 @@ def analizar_calidad_agua(datos):
             "tipo": "error",
             "titulo": "🚨 DIAGNÓSTICO: Nivel de Cloro Excesivo y Peligroso",
             "riesgos": """
-                - **Toxicidad para las Aves:** Este nivel de cloro es tóxico, causará rechazo total del agua, deshidratación y severos daños a la salud. **NO DEBE SER CONSUMIDA.**
-                - **Corrosión Acelerada de Equipos:** La solución es extremadamente corrosiva y dañará rápidamente tuberías, bebederos, bombas y sellos, causando fugas y fallas costosas.
-                - **Agua de Choque, no de Bebida:** Esta concentración corresponde a una desinfección de choque y no es apta para el consumo continuo.
+                - **Toxicidad para las Aves:** Este nivel de cloro es tóxico y causará rechazo del agua. **NO DEBE SER CONSUMIDA.**
+                - **Corrosión Acelerada de Equipos:** La solución es extremadamente corrosiva y dañará rápidamente tuberías, bebederos y bombas.
             """,
             "acciones": """
                 1. **SUSPENDER LA DOSIFICACIÓN INMEDIATAMENTE.**
-                2. **Purgar el Sistema:** Vaciar las tuberías y rellenar con agua fresca sin clorar hasta que los niveles vuelvan a un rango seguro (1-3 mg/L).
-                3. **Revisar el Dosificador:** Verificar que el equipo de dosificación de cloro no esté fallando o mal calibrado, ya que esta es la causa más probable de una sobredosis tan alta.
+                2. **Purgar el Sistema:** Vaciar las tuberías y rellenar con agua fresca hasta que los niveles vuelvan a un rango seguro (1-3 mg/L).
+                3. **Revisar el Dosificador:** Verificar que el equipo de dosificación de cloro no esté fallando.
             """
         })
         return diagnosticos
@@ -44,7 +43,7 @@ def analizar_calidad_agua(datos):
             "titulo": "⚠️ DIAGNÓSTICO: Lectura de ORP no Confiable",
             "riesgos": """
                 - **Sin Desinfectante Activo:** La lectura de ORP no es un indicador válido de desinfección si no hay un residual de cloro libre.
-                - **Falsa Seguridad:** Un valor de ORP alto sin cloro (probablemente por oxígeno disuelto) puede dar una falsa sensación de seguridad, pero el agua carece de capacidad para eliminar patógenos rápidamente.
+                - **Falsa Seguridad:** Un valor de ORP alto sin cloro puede dar una falsa sensación de seguridad, pero el agua carece de capacidad para eliminar patógenos rápidamente.
             """,
             "acciones": """
                 1. **Establecer un Residual de Cloro:** La prioridad es dosificar cloro hasta alcanzar un nivel de Cloro Libre de al menos 1.0 mg/L.
@@ -102,6 +101,23 @@ def analizar_calidad_agua(datos):
                 1. **Acción Inmediata: NO USAR EL AGUA.**
                 2. **Supercloración Masiva y Urgente.**
                 3. **Identificar y Eliminar la Fuente de Contaminación.**
+            """
+        })
+
+    # --- NUEVO: Análisis de Nitratos y Nitritos ---
+    if datos["nitratos"] > 10 or datos["nitritos"] > 1:
+        diagnosticos.append({
+            "tipo": "error",
+            "titulo": "🚨 DIAGNÓSTICO: Contaminación por Nitratos/Nitritos",
+            "riesgos": """
+                - **Riesgo de Metahemoglobinemia:** Limita la capacidad de la sangre para transportar oxígeno, causando problemas de crecimiento, estrés respiratorio y baja productividad. Es especialmente peligroso para animales jóvenes.
+                - **Indicador de Contaminación:** Su presencia sugiere una contaminación del pozo o fuente de agua por fertilizantes, estiércol o aguas residuales.
+                - **Nitritos (>1 mg/L):** La presencia de nitritos es particularmente grave, ya que son más tóxicos e indican una contaminación reciente y activa.
+            """,
+            "acciones": """
+                1. **Buscar una Fuente de Agua Alternativa INMEDIATAMENTE** para los animales, especialmente los más jóvenes.
+                2. **Identificar la Fuente de Contaminación:** Inspeccionar el pozo. Asegurarse de que no haya escorrentía de campos fertilizados, corrales o sistemas sépticos cercanos.
+                3. **Tratamiento a Largo Plazo:** La solución más efectiva para eliminar nitratos es un sistema de **Ósmosis Inversa (RO)** o de **Intercambio Iónico** (resinas de aniones).
             """
         })
 
@@ -185,12 +201,14 @@ with st.sidebar:
     dureza_total = st.number_input("Dureza Total (CaCO₃) en mg/L", 0, 120, 10, help="Agua muy dura: > 180 mg/L")
     sdt = st.number_input("Sólidos Disueltos Totales (SDT) en ppm", 0, 300, 50, help="Problemas digestivos: > 1500 ppm")
     sulfatos = st.number_input("Sulfatos (SO₄²⁻) en ppm", 0, 50, 10, help="Límite recomendado: < 250 ppm")
-    st.divider()
     
-    # --- LÍNEAS CORREGIDAS ---
+    # --- NUEVO: Widgets para Nitratos y Nitritos ---
+    nitratos = st.number_input("Nitratos (NO₃⁻) en ppm", min_value=0.0, value=5.0, step=1.0, help="Límite máximo: 10 ppm")
+    nitritos = st.number_input("Nitritos (NO₂⁻) en ppm", min_value=0.0, value=0.0, step=0.1, help="Límite máximo: 1 ppm")
+
+    st.divider()
     e_coli = st.number_input("E. coli (UFC/100mL)", min_value=0, value=0, step=1, help="Debe ser 0 para agua potable")
     coliformes_totales = st.number_input("Coliformes Totales (UFC/100mL)", min_value=0, value=0, step=1, help="Debe ser 0 para agua potable")
-    
     st.divider()
     orp = st.number_input("ORP (Potencial de Óxido-Reducción) en mV", -500, 1200, 650, 10, help="Ideal: > +650 mV (con cloro). Alerta > +850 mV.")
     analizar_btn = st.button("Analizar Calidad del Agua", type="primary", use_container_width=True)
@@ -199,7 +217,13 @@ with st.sidebar:
 if analizar_btn:
     if cloro_total < cloro_libre: st.error("Error: El Cloro Total no puede ser menor que el Cloro Libre.")
     else:
-        datos_usuario = {"orp": orp, "cloro_libre": cloro_libre, "cloro_total": cloro_total, "ph": ph, "hierro": hierro, "manganeso": manganeso, "turbidez": turbidez, "dureza_total": dureza_total, "e_coli": e_coli, "coliformes_totales": coliformes_totales, "sdt": sdt, "sulfatos": sulfatos}
+        datos_usuario = {
+            "orp": orp, "cloro_libre": cloro_libre, "cloro_total": cloro_total,
+            "ph": ph, "hierro": hierro, "manganeso": manganeso,
+            "turbidez": turbidez, "dureza_total": dureza_total, "e_coli": e_coli,
+            "coliformes_totales": coliformes_totales, "sdt": sdt, "sulfatos": sulfatos,
+            "nitratos": nitratos, "nitritos": nitritos # <-- Añadidos al diccionario
+        }
         diagnosticos = analizar_calidad_agua(datos_usuario)
         st.session_state['diagnosticos'] = diagnosticos
         st.session_state['datos_usuario'] = datos_usuario
