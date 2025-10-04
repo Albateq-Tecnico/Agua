@@ -138,23 +138,16 @@ def analizar_calidad_agua(datos):
     elif datos["hierro"] > 0.3 or datos["manganeso"] > 0.05:
         diagnosticos.append({"tipo": "warning", "titulo": "🟡 DIAGNÓSTICO: Riesgo por Metales", "riesgos": "- **Problemas Estéticos.**\n- **Acumulación en Tuberías.**", "acciones": "1. **Sistema de Oxidación/Filtración.**"})
         
-    # --- NUEVO: Análisis de Color Aparente ---
+    # Análisis de Color Aparente
     if datos["color_aparente"] > 15:
         riesgo_color = "- **Rechazo por parte de los animales:** El color es uno de los principales factores estéticos que provocan un menor consumo de agua.\n"
-        # Lógica inteligente para determinar la causa
         if datos["turbidez"] > 1.0 or datos["hierro"] > 0.3:
             riesgo_color += "- **Causa Probable:** Sólidos suspendidos (arcilla, limo, hierro oxidado)."
             accion_color = "1. **Filtración Física:** Utilizar un filtro de sedimentos o un filtro multimedia para eliminar las partículas que causan el color."
         else:
             riesgo_color += "- **Causa Probable:** Materia orgánica disuelta (taninos)."
             accion_color = "1. **Filtración con Carbón Activado:** El carbón activado es muy efectivo para adsorber los compuestos orgánicos que causan color.\n2. **Oxidación Química:** La inyección de cloro u ozono puede romper las moléculas de taninos, eliminando el color (requiere filtración posterior)."
-        
-        diagnosticos.append({
-            "tipo": "warning",
-            "titulo": "🟡 DIAGNÓSTICO: Color Elevado",
-            "riesgos": riesgo_color,
-            "acciones": accion_color
-        })
+        diagnosticos.append({"tipo": "warning", "titulo": "🟡 DIAGNÓSTICO: Color Elevado", "riesgos": riesgo_color, "acciones": accion_color})
 
     # 4. Parámetros Físico-Químicos
     if datos["turbidez"] > 1.0:
@@ -215,10 +208,7 @@ with st.sidebar:
     hierro = st.number_input("Hierro (Fe) en mg/L", 0.0, value=0.1, step=0.1, help="Valor típico: < 0.3 mg/L")
     manganeso = st.number_input("Manganeso (Mn) en mg/L", 0.0, value=0.02, step=0.01, help="Valor típico: < 0.05 mg/L")
     turbidez = st.number_input("Turbidez en NTU", 0.0, 0.5, 0.5, help="Valor típico: < 1 NTU")
-    
-    # --- NUEVO: Widget para Color Aparente ---
     color_aparente = st.number_input("Color Aparente (U. Pt-Co)", min_value=0, value=10, step=5, help="Límite estético: 15 U. Pt-Co")
-    
     dureza_total = st.number_input("Dureza Total (CaCO₃) en mg/L", 0, 120, 10, help="Agua muy dura: > 180 mg/L")
     sdt = st.number_input("Sólidos Disueltos Totales (SDT) en ppm", 0, 300, 50, help="Problemas digestivos: > 1500 ppm")
     sulfatos = st.number_input("Sulfatos (SO₄²⁻) en ppm", 0, 50, 10, help="Límite recomendado: < 250 ppm")
@@ -235,14 +225,7 @@ with st.sidebar:
 if analizar_btn:
     if cloro_total < cloro_libre: st.error("Error: El Cloro Total no puede ser menor que el Cloro Libre.")
     else:
-        datos_usuario = {
-            "orp": orp, "cloro_libre": cloro_libre, "cloro_total": cloro_total,
-            "ph": ph, "hierro": hierro, "manganeso": manganeso,
-            "turbidez": turbidez, "dureza_total": dureza_total, "e_coli": e_coli,
-            "coliformes_totales": coliformes_totales, "sdt": sdt, "sulfatos": sulfatos,
-            "nitratos": nitratos, "nitritos": nitritos,
-            "color_aparente": color_aparente # <-- Añadido al diccionario
-        }
+        datos_usuario = {"orp": orp, "cloro_libre": cloro_libre, "cloro_total": cloro_total, "ph": ph, "hierro": hierro, "manganeso": manganeso, "turbidez": turbidez, "color_aparente": color_aparente, "dureza_total": dureza_total, "e_coli": e_coli, "coliformes_totales": coliformes_totales, "sdt": sdt, "sulfatos": sulfatos, "nitratos": nitratos, "nitritos": nitritos}
         diagnosticos = analizar_calidad_agua(datos_usuario)
         st.session_state['diagnosticos'] = diagnosticos
         st.session_state['datos_usuario'] = datos_usuario
@@ -258,7 +241,7 @@ if 'diagnosticos' in st.session_state:
             with st.expander(f"**{diag['titulo']}**", expanded=True):
                 if diag['tipo'] == 'error': st.error(f"**DIAGNÓSTICO:** {diag['titulo']}")
                 elif diag['tipo'] == 'warning': st.warning(f"**DIAGNÓSTICO:** {diag['titulo']}")
-                elif diag['tipo'] == 'success': st.success(f"**DIAGNÓ..**")
+                elif diag['tipo'] == 'success': st.success(f"**DIAGNÓSTICO:** {diag['titulo']}") # <-- LÍNEA CORREGIDA
                 st.subheader("Riesgos Potenciales"); st.markdown(diag['riesgos'], unsafe_allow_html=True)
                 st.subheader("Plan de Acción Recomendado"); st.markdown(diag['acciones'], unsafe_allow_html=True)
     if st.session_state.get('datos_usuario'):
