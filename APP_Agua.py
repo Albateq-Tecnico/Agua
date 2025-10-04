@@ -4,7 +4,7 @@ from fpdf import FPDF
 from datetime import datetime
 import re
 
-# --- Page Configuration ---
+# --- Configuración de la Página ---
 st.set_page_config(
     page_title="Asistente de Calidad del Agua",
     page_icon="logo_albateq-removebg-preview.png",
@@ -12,14 +12,33 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- Analysis Logic Functions ---
+# --- Funciones de Lógica y Análisis ---
 def analizar_calidad_agua(datos):
     """
-    Analyzes water data based on a decision tree and returns a list of diagnostics.
+    Analiza los datos del agua basándose en un árbol de decisión y devuelve una lista de diagnósticos.
     """
     diagnosticos = []
     
-    # --- ORP Analysis (Now with Chlorine and pH context) ---
+    # --- NUEVO: Verificación de Límite Máximo de Cloro (Máxima Prioridad) ---
+    if datos["cloro_libre"] > 5.0:
+        diagnosticos.append({
+            "tipo": "error",
+            "titulo": "🚨 DIAGNÓSTICO: Nivel de Cloro Excesivo y Peligroso",
+            "riesgos": """
+                - **Toxicidad para las Aves:** Este nivel de cloro es tóxico, causará rechazo total del agua, deshidratación y severos daños a la salud. **NO DEBE SER CONSUMIDA.**
+                - **Corrosión Acelerada de Equipos:** La solución es extremadamente corrosiva y dañará rápidamente tuberías, bebederos, bombas y sellos, causando fugas y fallas costosas.
+                - **Agua de Choque, no de Bebida:** Esta concentración corresponde a una desinfección de choque y no es apta para el consumo continuo.
+            """,
+            "acciones": """
+                1. **SUSPENDER LA DOSIFICACIÓN INMEDIATAMENTE.**
+                2. **Purgar el Sistema:** Vaciar las tuberías y rellenar con agua fresca sin clorar hasta que los niveles vuelvan a un rango seguro (1-3 mg/L).
+                3. **Revisar el Dosificador:** Verificar que el equipo de dosificación de cloro no esté fallando o mal calibrado, ya que esta es la causa más probable de una sobredosis tan alta.
+            """
+        })
+        # Si el cloro es peligrosamente alto, no tiene sentido continuar con otros análisis
+        return diagnosticos
+
+    # --- Análisis de ORP (Ahora no se activará si el cloro es excesivo) ---
     if datos["cloro_libre"] <= 0:
         diagnosticos.append({
             "tipo": "warning",
@@ -39,7 +58,7 @@ def analizar_calidad_agua(datos):
             "titulo": "✅ DIAGNÓSTICO: Excelente Potencial de Desinfección (ORP)",
             "riesgos": """
                 - **Desinfección Rápida y Eficaz:** Un ORP superior a +650 mV, junto con un residual de cloro, indica que el desinfectante es altamente activo y elimina patógenos de forma casi instantánea.
-                - **Importante:** Este valor es significativo solo si se acompaña de un nivel de **Cloro Libre adecuado (>1.0 mg/L)** y un **pH en el rango óptimo (6.0-7.0)**.
+                - **Importante:** Este valor es significativo solo si se acompaña de un nivel de **Cloro Libre adecuado (1.0-4.0 mg/L)** y un **pH en el rango óptimo (6.0-7.0)**.
             """,
             "acciones": """
                 1. **Mantener Parámetros:** Continuar con las buenas prácticas de dosificación y control de pH para mantener este excelente nivel.
@@ -73,7 +92,7 @@ def analizar_calidad_agua(datos):
             """
         })
 
-    # 1. Microbiological Analysis
+    # 1. Análisis Microbiológico
     if datos["e_coli"] > 0 or datos["coliformes_totales"] > 0:
         diagnosticos.append({
             "tipo": "error",
@@ -82,7 +101,7 @@ def analizar_calidad_agua(datos):
             "acciones": "1. **No Consumir el Agua.**\n2. **Desinfección Urgente:** Aplicar un tratamiento de choque con cloro.\n3. **Identificar la Fuente de Contaminación.**"
         })
 
-    # 2. Chlorine Disinfection Analysis
+    # 2. Análisis de Desinfección por Cloro
     if datos["cloro_libre"] < 1.0 and datos["cloro_libre"] > 0:
         diagnosticos.append({
             "tipo": "warning",
@@ -100,7 +119,7 @@ def analizar_calidad_agua(datos):
             "acciones": "1. **Supercloración de Choque:** Aplicar una dosis alta y sostenida.\n2. **Investigar el Sistema:** Inspeccionar depósitos y puntos muertos de la red."
         })
 
-    # 3. Metals Analysis
+    # 3. Análisis de Metales
     if datos["hierro"] > 1.0:
         diagnosticos.append({
             "tipo": "error",
@@ -116,7 +135,7 @@ def analizar_calidad_agua(datos):
             "acciones": "1. **Sistema de Oxidación/Filtración:** Usar cloro o aire antes de un filtro de arena verde."
         })
         
-    # 4. Physico-Chemical Parameters
+    # 4. Parámetros Físico-Químicos
     if datos["turbidez"] > 1.0:
         diagnosticos.append({
             "tipo": "warning",
@@ -133,7 +152,7 @@ def analizar_calidad_agua(datos):
             "acciones": "1. **Ajuste de pH:** Corregir el pH antes de la desinfección."
         })
 
-    # 5. Salts and Minerals
+    # 5. Sales y Minerales
     if datos["dureza_total"] > 180:
         diagnosticos.append({
             "tipo": "warning",
@@ -152,7 +171,7 @@ def analizar_calidad_agua(datos):
         
     return diagnosticos
 
-# --- PDF Generation Class (No changes) ---
+# --- Clase de Generación de PDF (Sin cambios) ---
 class PDF(FPDF):
     def header(self):
         self.set_font('Arial', 'B', 12)
@@ -160,33 +179,24 @@ class PDF(FPDF):
         self.set_font('Arial', '', 8)
         self.cell(0, 10, f'Fecha de Emision: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 1, 'C')
         self.ln(10)
-
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
         self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
-
     def chapter_title(self, title):
         self.set_font('Arial', 'B', 12)
         self.cell(0, 10, title, 0, 1, 'L')
         self.ln(4)
-
     def chapter_body(self, body):
         self.set_font('Arial', '', 10)
         body_cleaned = body.encode('latin-1', 'replace').decode('latin-1')
         self.multi_cell(0, 5, body_cleaned)
         self.ln()
-
     def add_diagnostic_section(self, tipo, titulo, riesgos, acciones):
-        if tipo == "error":
-            self.set_text_color(220, 50, 50)
-        elif tipo == "warning":
-            self.set_text_color(255, 193, 7)
-        elif tipo == "success":
-            self.set_text_color(40, 167, 69)
-        else:
-            self.set_text_color(0, 0, 0)
-
+        if tipo == "error": self.set_text_color(220, 50, 50)
+        elif tipo == "warning": self.set_text_color(255, 193, 7)
+        elif tipo == "success": self.set_text_color(40, 167, 69)
+        else: self.set_text_color(0, 0, 0)
         titulo_pdf = re.sub(r'[^\w\s\.:\-%()]', '', titulo)
         self.set_font('Arial', 'B', 11)
         self.multi_cell(0, 5, titulo_pdf)
@@ -228,7 +238,7 @@ def generar_pdf(datos_entrada, resultados):
             pdf.add_diagnostic_section(diag["tipo"], diag["titulo"], diag["riesgos"], diag["acciones"])
     return bytes(pdf.output())
 
-# --- User Interface (Streamlit) ---
+# --- Interfaz de Usuario (Streamlit) ---
 try:
     st.image("log_PEQ.png", width=100)
 except FileNotFoundError:
@@ -239,33 +249,24 @@ st.markdown("Introduce los resultados de tu análisis de agua para recibir un di
 
 with st.sidebar:
     st.header("Parámetros del Agua")
-    
-    # --- Reordered Inputs ---
-    cloro_libre = st.number_input("Cloro Libre (mg/L)", min_value=0.0, value=1.5, step=0.1, help="Rango ideal: 1.0 - 3.0 mg/L")
-    cloro_total = st.number_input("Cloro Total (mg/L)", min_value=0.0, value=1.6, step=0.1, help="Debe ser igual o mayor que el Cloro Libre")
+    cloro_libre = st.number_input("Cloro Libre (mg/L)", min_value=0.0, max_value=500.0, value=1.5, step=0.1, help="Rango ideal para bebida: 1.0 - 4.0 mg/L")
+    cloro_total = st.number_input("Cloro Total (mg/L)", min_value=0.0, max_value=500.0, value=1.6, step=0.1, help="Debe ser igual o mayor que el Cloro Libre")
     ph = st.number_input("pH", min_value=0.0, max_value=14.0, value=7.2, step=0.1, help="Rango ideal para desinfección: 6.0 - 7.0")
-    
     st.divider()
-
     hierro = st.number_input("Hierro (Fe) en mg/L", min_value=0.0, value=0.1, step=0.1, help="Valor típico: < 0.3 mg/L")
     manganeso = st.number_input("Manganeso (Mn) en mg/L", min_value=0.0, value=0.02, step=0.01, help="Valor típico: < 0.05 mg/L")
     turbidez = st.number_input("Turbidez en NTU", min_value=0.0, value=0.5, step=0.5, help="Valor típico: < 1 NTU")
     dureza_total = st.number_input("Dureza Total (CaCO₃) en mg/L", min_value=0, value=120, step=10, help="Agua muy dura: > 180 mg/L")
     sdt = st.number_input("Sólidos Disueltos Totales (SDT) en ppm", min_value=0, value=300, step=50, help="Problemas digestivos: > 1500 ppm")
     sulfatos = st.number_input("Sulfatos (SO₄²⁻) en ppm", min_value=0, value=50, step=10, help="Límite recomendado: < 250 ppm")
-
     st.divider()
-
     e_coli = st.number_input("E. coli (UFC/100mL)", min_value=0, value=0, step=1, help="Debe ser 0 para agua potable")
     coliformes_totales = st.number_input("Coliformes Totales (UFC/100mL)", min_value=0, value=0, step=1, help="Debe ser 0 para agua potable")
-    
     st.divider()
-
-    orp = st.number_input("ORP (Potencial de Óxido-Reducción) en mV", min_value=-500, max_value=1000, value=650, step=10, help="Ideal para desinfección: > +650 mV")
-
+    orp = st.number_input("ORP (Potencial de Óxido-Reducción) en mV", min_value=-500, max_value=1000, value=650, step=10, help="Ideal para desinfección: > +650 mV (con cloro presente)")
     analizar_btn = st.button("Analizar Calidad del Agua", type="primary", use_container_width=True)
 
-# --- Results Display Logic ---
+# --- Lógica de Visualización de Resultados ---
 if analizar_btn:
     if cloro_total < cloro_libre:
         st.error("Error: El Cloro Total no puede ser menor que el Cloro Libre. Por favor, corrija los valores.")
@@ -276,36 +277,27 @@ if analizar_btn:
             "turbidez": turbidez, "dureza_total": dureza_total, "e_coli": e_coli,
             "coliformes_totales": coliformes_totales, "sdt": sdt, "sulfatos": sulfatos
         }
-        
         diagnosticos = analizar_calidad_agua(datos_usuario)
         st.session_state['diagnosticos'] = diagnosticos
         st.session_state['datos_usuario'] = datos_usuario
 
 if 'diagnosticos' in st.session_state:
     diagnosticos = st.session_state['diagnosticos']
-    
     st.header("Resultados del Análisis")
-
     if not diagnosticos:
         st.success("✅ ¡Excelente! La calidad de tu agua cumple con los parámetros analizados.")
     else:
         order = {"error": 0, "warning": 1, "success": 2}
         diagnosticos.sort(key=lambda x: order.get(x['tipo'], 99))
-        
         for diag in diagnosticos:
             with st.expander(f"**{diag['titulo']}**", expanded=True):
-                if diag['tipo'] == 'error':
-                    st.error(f"**DIAGNÓSTICO:** {diag['titulo']}")
-                elif diag['tipo'] == 'warning':
-                    st.warning(f"**DIAGNÓSTICO:** {diag['titulo']}")
-                elif diag['tipo'] == 'success':
-                    st.success(f"**DIAGNÓSTICO:** {diag['titulo']}")
-                
+                if diag['tipo'] == 'error': st.error(f"**DIAGNÓSTICO:** {diag['titulo']}")
+                elif diag['tipo'] == 'warning': st.warning(f"**DIAGNÓSTICO:** {diag['titulo']}")
+                elif diag['tipo'] == 'success': st.success(f"**DIAGNÓSTICO:** {diag['titulo']}")
                 st.subheader("Riesgos Potenciales")
                 st.markdown(diag['riesgos'], unsafe_allow_html=True)
                 st.subheader("Plan de Acción Recomendado")
                 st.markdown(diag['acciones'], unsafe_allow_html=True)
-    
     if st.session_state.get('datos_usuario'):
         pdf_bytes = generar_pdf(st.session_state['datos_usuario'], diagnosticos)
         st.download_button(
@@ -314,10 +306,7 @@ if 'diagnosticos' in st.session_state:
             file_name=f"reporte_calidad_agua_{datetime.now().strftime('%Y%m%d')}.pdf",
             mime="application/pdf"
         )
-    
     st.divider()
-
-    # --- Disclaimer Note ---
     st.info("""
     **Nota de Responsabilidad:** Esta es una herramienta de apoyo para uso en granja. 
     La utilización de los resultados es de su exclusiva responsabilidad. No sustituye la asesoría profesional 
