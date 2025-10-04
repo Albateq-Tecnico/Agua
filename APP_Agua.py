@@ -113,10 +113,31 @@ def analizar_calidad_agua(datos):
         diagnosticos.append({"tipo": "warning", "titulo": "🟡 DIAGNóstico: Niveles Elevados de Sales Disueltas", "riesgos": "- **Sabor Salino o Amargo.**\n- **Efecto Laxante.**", "acciones": "1. **Ósmosis Inversa (RO).**"})
     return diagnosticos
 
-# --- Clases y Funciones de PDF (Sin cambios) ---
+# --- Clases y Funciones de PDF (CON AJUSTES) ---
 class PDF(FPDF):
-    def header(self): self.set_font('Arial', 'B', 12); self.cell(0, 10, 'Reporte de Calidad del Agua', 0, 1, 'C'); self.set_font('Arial', '', 8); self.cell(0, 10, f'Fecha de Emision: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 1, 'C'); self.ln(10)
-    def footer(self): self.set_y(-15); self.set_font('Arial', 'I', 8); self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
+    def header(self):
+        # --- NUEVO: Añadir logo al encabezado del PDF ---
+        try:
+            # Posición: 10mm desde la izquierda, 8mm desde arriba, 33mm de ancho
+            self.image('log_agua_alb.png', 10, 8, 33)
+        except FileNotFoundError:
+            pass # Si no encuentra el logo, no detiene la creación del PDF
+        
+        self.set_font('Arial', 'B', 15)
+        # Mover el título a la derecha para no superponerse con el logo
+        self.cell(80) 
+        self.cell(30, 10, 'Reporte de Calidad del Agua', 0, 0, 'C')
+        self.set_font('Arial', '', 8)
+        self.ln(5)
+        self.cell(80)
+        self.cell(30, 10, f'Fecha de Emision: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 0, 'C')
+        self.ln(20)
+
+    def footer(self): 
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
+
     def chapter_title(self, title): self.set_font('Arial', 'B', 12); self.cell(0, 10, title, 0, 1, 'L'); self.ln(4)
     def chapter_body(self, body): self.set_font('Arial', '', 10); body_cleaned = body.encode('latin-1', 'replace').decode('latin-1'); self.multi_cell(0, 5, body_cleaned); self.ln()
     def add_diagnostic_section(self, tipo, titulo, riesgos, acciones):
@@ -131,8 +152,10 @@ class PDF(FPDF):
         self.set_font('Arial', 'B', 10); self.cell(0, 5, "Plan de Accion Recomendado:"); self.ln(); self.set_font('Arial', '', 10); self.multi_cell(0, 5, acciones_pdf); self.ln(5)
 
 def generar_pdf(datos_entrada, resultados):
-    pdf = PDF(); pdf.add_page(); pdf.chapter_title("1. Parametros Ingresados por el Usuario")
-    body = ""; 
+    pdf = PDF()
+    pdf.add_page()
+    pdf.chapter_title("1. Parametros Ingresados por el Usuario")
+    body = ""
     for key, value in datos_entrada.items(): body += f"- {key.replace('_', ' ').title()}: {value}\n"
     pdf.chapter_body(body)
     pdf.chapter_title("2. Diagnosticos y Recomendaciones")
@@ -141,6 +164,20 @@ def generar_pdf(datos_entrada, resultados):
         pdf.multi_cell(0, 5, mensaje_exito); pdf.set_text_color(0, 0, 0)
     else:
         for diag in resultados: pdf.add_diagnostic_section(diag["tipo"], diag["titulo"], diag["riesgos"], diag["acciones"])
+    
+    # --- NUEVO: Añadir nota de responsabilidad al final del PDF ---
+    pdf.ln(10) # Espacio antes de la nota
+    pdf.set_font('Arial', 'I', 8)
+    pdf.set_text_color(128, 128, 128) # Color gris para la nota
+    disclaimer_text = (
+        "Nota de Responsabilidad: Esta es una herramienta de apoyo para uso en granja. "
+        "La utilización de los resultados es de su exclusiva responsabilidad. No sustituye la asesoría profesional "
+        "y Albateq S.A. no se hace responsable por las decisiones tomadas con base en la información aquí presentada.\n\n"
+        "Desarrollado por la Dirección Técnica de Albateq | dtecnico@albateq.com"
+    )
+    disclaimer_cleaned = disclaimer_text.encode('latin-1', 'replace').decode('latin-1')
+    pdf.multi_cell(0, 4, disclaimer_cleaned, align='C')
+
     return bytes(pdf.output())
 
 # --- Interfaz de Usuario (Streamlit) ---
@@ -151,47 +188,38 @@ st.title("Asistente de Calidad del Agua")
 st.markdown("Introduce los resultados de tu análisis de agua para recibir un diagnóstico instantáneo y un plan de acción.")
 
 with st.sidebar:
-    # --- IMAGEN DEL LOGO EN LA PARTE SUPERIOR DE LA BARRA LATERAL ---
     try:
-        st.image("log_agua_alb.png", width=200) # Ajusta el width si es necesario
+        st.image("log_agua_alb.png", use_column_width=True)
     except FileNotFoundError:
-        st.warning("No se encontró 'log_agua_alb.png'. Asegúrate de que la imagen esté en el directorio correcto.")
+        st.warning("No se encontró 'log_agua_alb.png'.")
     
     st.header("Parámetros del Agua")
-    
-    # --- NUEVO ORDEN DE ENTRADA ---
     st.subheader("1. Desinfección")
     ph = st.number_input("pH", 0.0, 14.0, 7.2, 0.1, help="Rango ideal para desinfección con cloro: 6.0 - 7.0")
     cloro_libre = st.number_input("Cloro Libre (mg/L)", 0.0, 500.0, 1.5, 0.1, help="Rango ideal para bebida: 1.0 - 4.0 mg/L")
     cloro_total = st.number_input("Cloro Total (mg/L)", 0.0, 500.0, 1.6, 0.1, help="Debe ser igual o mayor que el Cloro Libre")
-    
     st.divider()
     st.subheader("2. Contaminantes Químicos")
     nitratos = st.number_input("Nitratos (NO₃⁻) en ppm", min_value=0.0, value=5.0, step=1.0, help="Límite máximo: 10 ppm")
     nitritos = st.number_input("Nitritos (NO₂⁻) en ppm", min_value=0.0, value=0.0, step=0.1, help="Límite máximo: 1 ppm")
-    
     st.divider()
     st.subheader("3. Parámetros Físicos y Estéticos")
     hierro = st.number_input("Hierro (Fe) en mg/L", 0.0, value=0.1, step=0.1, help="Límite estético: < 0.3 mg/L")
     manganeso = st.number_input("Manganeso (Mn) en mg/L", 0.0, value=0.02, step=0.01, help="Límite estético: < 0.05 mg/L")
     turbidez = st.number_input("Turbidez en NTU", 0.0, 0.5, 0.5, help="Límite para desinfección eficaz: < 1 NTU")
     color_aparente = st.number_input("Color Aparente (U. Pt-Co)", min_value=0, value=10, step=5, help="Límite estético: 15 U. Pt-Co")
-    
     st.divider()
     st.subheader("4. Parámetros Generales")
     dureza_total = st.number_input("Dureza Total (CaCO₃) en mg/L", 0, 120, 10, help="Agua muy dura: > 180 mg/L")
     sdt = st.number_input("Sólidos Disueltos Totales (SDT) en ppm", 0, 300, 50, help="Límite recomendado: < 1000 ppm")
     sulfatos = st.number_input("Sulfatos (SO₄²⁻) en ppm", 0, 50, 10, help="Límite recomendado: < 250 ppm")
-    
     st.divider()
     st.subheader("5. Microbiología")
     e_coli = st.number_input("E. coli (UFC/100mL)", min_value=0, value=0, step=1, help="Debe ser 0 para agua potable")
     coliformes_totales = st.number_input("Coliformes Totales (UFC/100mL)", min_value=0, value=0, step=1, help="Debe ser 0 para agua potable")
-    
     st.divider()
     st.subheader("6. Potencial de Desinfección")
     orp = st.number_input("ORP (Potencial de Óxido-Reducción) en mV", -500, 1200, 650, 10, help="Ideal: > +650 mV (con cloro). Alerta Corrosión: > +850 mV.")
-    
     st.divider()
     analizar_btn = st.button("Analizar Calidad del Agua", type="primary", use_container_width=True)
 
@@ -228,4 +256,4 @@ if 'diagnosticos' in st.session_state:
         st.download_button("📄 Descargar Reporte en PDF", pdf_bytes, f"reporte_calidad_agua_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf")
     st.divider()
     st.info("""**Nota de Responsabilidad:** Esta es una herramienta de apoyo para uso en granja. La utilización de los resultados es de su exclusiva responsabilidad. No sustituye la asesoría profesional y Albateq S.A. no se hace responsable por las decisiones tomadas con base en la información aquí presentada.""")
-    st.markdown("<div style='text-align: center; font-size: small;'>Desarrollado por la Dirección Técnica de Albateq | dtecnico@albateq.com  con el acompañamiento de Diana Paola Aristizabal</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; font-size: small;'>Desarrollado por la Dirección Técnica de Albateq | dtecnico@albateq.com</div>", unsafe_allow_html=True)
