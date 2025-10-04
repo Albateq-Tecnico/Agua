@@ -81,8 +81,25 @@ def analizar_calidad_agua(datos):
 
 # --- Clases y Funciones de PDF (sin cambios) ---
 class PDF(FPDF):
-    def header(self): self.set_font('Arial', 'B', 12); self.cell(0, 10, 'Reporte de Calidad del Agua', 0, 1, 'C'); self.set_font('Arial', '', 8); self.cell(0, 10, f'Fecha de Emision: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 1, 'C'); self.ln(10)
-    def footer(self): self.set_y(-15); self.set_font('Arial', 'I', 8); self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
+    def header(self):
+        try:
+            self.image('log_agua_alb.png', 10, 8, 33)
+        except FileNotFoundError:
+            pass 
+        self.set_font('Arial', 'B', 15)
+        self.cell(80) 
+        self.cell(30, 10, 'Reporte de Calidad del Agua', 0, 0, 'C')
+        self.set_font('Arial', '', 8)
+        self.ln(5)
+        self.cell(80)
+        self.cell(30, 10, f'Fecha de Emision: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 0, 'C')
+        self.ln(20)
+
+    def footer(self): 
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
+
     def chapter_title(self, title): self.set_font('Arial', 'B', 12); self.cell(0, 10, title, 0, 1, 'L'); self.ln(4)
     def chapter_body(self, body): self.set_font('Arial', '', 10); body_cleaned = body.encode('latin-1', 'replace').decode('latin-1'); self.multi_cell(0, 5, body_cleaned); self.ln()
     def add_diagnostic_section(self, tipo, titulo, riesgos, acciones):
@@ -107,6 +124,11 @@ def generar_pdf(datos_entrada, resultados):
         pdf.multi_cell(0, 5, mensaje_exito); pdf.set_text_color(0, 0, 0)
     else:
         for diag in resultados: pdf.add_diagnostic_section(diag["tipo"], diag["titulo"], diag["riesgos"], diag["acciones"])
+    pdf.ln(10)
+    pdf.set_font('Arial', 'I', 8); pdf.set_text_color(128, 128, 128)
+    disclaimer_text = ("Nota de Responsabilidad: Esta es una herramienta de apoyo para uso en granja. " "La utilización de los resultados es de su exclusiva responsabilidad. No sustituye la asesoría profesional " "y Albateq S.A. no se hace responsable por las decisiones tomadas con base en la información aquí presentada.\n\n" "Desarrollado por la Dirección Técnica de Albateq | dtecnico@albateq.com")
+    disclaimer_cleaned = disclaimer_text.encode('latin-1', 'replace').decode('latin-1')
+    pdf.multi_cell(0, 4, disclaimer_cleaned, align='C')
     return bytes(pdf.output())
 
 # --- Interfaz de Usuario (Streamlit) ---
@@ -117,9 +139,15 @@ st.title("Asistente de Calidad del Agua")
 st.markdown("Introduce los resultados de tu análisis de agua para recibir un diagnóstico instantáneo y un plan de acción.")
 
 with st.sidebar:
+    # --- LOGO CORREGIDO ---
+    try:
+        st.image("log_agua_alb.png", use_container_width=True)
+    except FileNotFoundError:
+        st.warning("No se encontró 'log_agua_alb.png'.")
+    
     st.header("Parámetros del Agua")
     
-    # --- NUEVO: Selector de Modo de Análisis ---
+    # --- Selector de Modo de Análisis ---
     modo_analisis = st.radio(
         "Modo de Análisis",
         ["Rápido (pH y Cloro)", "Completo (Todos los parámetros)"],
@@ -195,7 +223,7 @@ if 'diagnosticos' in st.session_state:
                 st.subheader("Riesgos Potenciales"); st.markdown(diag['riesgos'], unsafe_allow_html=True)
                 st.subheader("Plan de Acción Recomendado"); st.markdown(diag['acciones'], unsafe_allow_html=True)
     
-    # --- NUEVO: Lógica para recomendar parámetros faltantes ---
+    # --- Lógica para recomendar parámetros faltantes ---
     parametros_todos = [
         "nitratos", "nitritos", "hierro", "manganeso", "turbidez", 
         "color_aparente", "dureza_total", "sdt", "sulfatos", 
