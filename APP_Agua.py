@@ -7,7 +7,7 @@ import re
 # --- Configuración de la Página ---
 st.set_page_config(
     page_title="Asistente de Calidad del Agua",
-    page_icon="💧", # <-- ICONO CAMBIADO
+    page_icon="💧", 
     layout="centered",
     initial_sidebar_state="expanded"
 )
@@ -151,6 +151,12 @@ st.title("Asistente de Calidad del Agua")
 st.markdown("Introduce los resultados de tu análisis de agua para recibir un diagnóstico instantáneo y un plan de acción.")
 
 with st.sidebar:
+    # --- IMAGEN DEL LOGO EN LA PARTE SUPERIOR DE LA BARRA LATERAL ---
+    try:
+        st.image("log_agua_alb.png", width=200) # Ajusta el width si es necesario
+    except FileNotFoundError:
+        st.warning("No se encontró 'log_agua_alb.png'. Asegúrate de que la imagen esté en el directorio correcto.")
+    
     st.header("Parámetros del Agua")
     
     # --- NUEVO ORDEN DE ENTRADA ---
