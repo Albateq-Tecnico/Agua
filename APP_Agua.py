@@ -228,4 +228,4 @@ if 'diagnosticos' in st.session_state:
         st.download_button("📄 Descargar Reporte en PDF", pdf_bytes, f"reporte_calidad_agua_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf")
     st.divider()
     st.info("""**Nota de Responsabilidad:** Esta es una herramienta de apoyo para uso en granja. La utilización de los resultados es de su exclusiva responsabilidad. No sustituye la asesoría profesional y Albateq S.A. no se hace responsable por las decisiones tomadas con base en la información aquí presentada.""")
-    st.markdown("<div style='text-align: center; font-size: small;'>Desarrollado por la Dirección Técnica de Albateq | dtecnico@albateq.com</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; font-size: small;'>Desarrollado por la Dirección Técnica de Albateq | dtecnico@albateq.com  con el acompañamiento de Diana Paola Aristizabal</div>", unsafe_allow_html=True)
