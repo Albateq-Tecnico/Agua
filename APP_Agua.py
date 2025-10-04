@@ -25,13 +25,14 @@ def analizar_calidad_agua(datos):
             "tipo": "error",
             "titulo": "🚨 DIAGNÓSTICO: Nivel de Cloro Excesivo y Peligroso",
             "riesgos": """
-                - **Toxicidad para las Aves:** Este nivel de cloro es tóxico y causará rechazo del agua. **NO DEBE SER CONSUMIDA.**
-                - **Corrosión Acelerada de Equipos:** La solución es extremadamente corrosiva y dañará rápidamente tuberías, bebederos y bombas.
+                - **Toxicidad para las Aves:** Este nivel de cloro es tóxico, causará rechazo total del agua, deshidratación y severos daños a la salud. **NO DEBE SER CONSUMIDA.**
+                - **Corrosión Acelerada de Equipos:** La solución es extremadamente corrosiva y dañará rápidamente tuberías, bebederos, bombas y sellos, causando fugas y fallas costosas.
+                - **Agua de Choque, no de Bebida:** Esta concentración corresponde a una desinfección de choque y no es apta para el consumo continuo.
             """,
             "acciones": """
                 1. **SUSPENDER LA DOSIFICACIÓN INMEDIATAMENTE.**
-                2. **Purgar el Sistema:** Vaciar las tuberías y rellenar con agua fresca hasta que los niveles vuelvan a un rango seguro (1-3 mg/L).
-                3. **Revisar el Dosificador:** Verificar que el equipo de dosificación de cloro no esté fallando.
+                2. **Purgar el Sistema:** Vaciar las tuberías y rellenar con agua fresca sin clorar hasta que los niveles vuelvan a un rango seguro (1-3 mg/L).
+                3. **Revisar el Dosificador:** Verificar que el equipo de dosificación de cloro no esté fallando o mal calibrado, ya que esta es la causa más probable de una sobredosis tan alta.
             """
         })
         return diagnosticos
@@ -43,14 +44,13 @@ def analizar_calidad_agua(datos):
             "titulo": "⚠️ DIAGNÓSTICO: Lectura de ORP no Confiable",
             "riesgos": """
                 - **Sin Desinfectante Activo:** La lectura de ORP no es un indicador válido de desinfección si no hay un residual de cloro libre.
-                - **Falsa Seguridad:** Un valor de ORP alto sin cloro puede dar una falsa sensación de seguridad, pero el agua carece de capacidad para eliminar patógenos rápidamente.
+                - **Falsa Seguridad:** Un valor de ORP alto sin cloro (probablemente por oxígeno disuelto) puede dar una falsa sensación de seguridad, pero el agua carece de capacidad para eliminar patógenos rápidamente.
             """,
             "acciones": """
                 1. **Establecer un Residual de Cloro:** La prioridad es dosificar cloro hasta alcanzar un nivel de Cloro Libre de al menos 1.0 mg/L.
                 2. **Volver a Medir ORP:** Una vez que haya un residual de cloro estable y el pH esté en rango, la medida de ORP será un indicador confiable.
             """
         })
-    # --- NUEVO: Límite superior para ORP ---
     elif datos["orp"] > 850:
         diagnosticos.append({
             "tipo": "warning",
@@ -105,27 +105,36 @@ def analizar_calidad_agua(datos):
             """
         })
 
-    # El resto de la lógica de análisis (microbiología, cloro, metales, etc.) sigue sin cambios...
+    # 1. Análisis Microbiológico
     if datos["e_coli"] > 0 or datos["coliformes_totales"] > 0:
         diagnosticos.append({"tipo": "error", "titulo": "🔴 DIAGNÓSTICO: Contaminación Microbiológica Crítica", "riesgos": "- **Riesgo Sanitario Extremo:** Indica contaminación fecal.\n- **Enfermedades Graves:** Puede causar afecciones gastrointestinales.", "acciones": "1. **No Consumir el Agua.**\n2. **Desinfección Urgente.**\n3. **Identificar la Fuente de Contaminación.**"})
+    
+    # 2. Análisis de Desinfección por Cloro
     if datos["cloro_libre"] < 1.0 and datos["cloro_libre"] > 0:
         diagnosticos.append({"tipo": "warning", "titulo": "🟡 DIAGNÓSTICO: Nivel de Cloro Libre Insuficiente", "riesgos": "- **Desinfección Ineficaz.**\n- **Riesgo de Crecimiento Microbiológico.**", "acciones": "1. **Aumentar Dosificación de Cloro.**\n2. **Verificar Demanda de Cloro.**"})
     elif datos["cloro_total"] > 0 and (datos["cloro_libre"] / datos["cloro_total"]) < 0.85:
         cloro_combinado = datos["cloro_total"] - datos["cloro_libre"]
         proporcion_libre = (datos["cloro_libre"] / datos["cloro_total"]) * 100
         diagnosticos.append({"tipo": "warning", "titulo": "🟡 DIAGNÓSTICO: Alta Demanda de Cloro (Posible Biofilm)", "riesgos": f"- **Proporción de Cloro Libre:** {proporcion_libre:.1f}% (Ideal: > 85%).\n- **Nivel de Cloro Combinado:** {cloro_combinado:.2f} mg/L.\n- **Causa Probable:** Fuerte indicio de **biofilm**.", "acciones": "1. **Supercloración de Choque.**\n2. **Investigar el Sistema.**"})
+    
+    # 3. Análisis de Metales
     if datos["hierro"] > 1.0:
         diagnosticos.append({"tipo": "error", "titulo": "🔴 DIAGNÓSTICO: Contaminación Severa por Hierro y Ferrobacterias", "riesgos": "- **Infestación por Ferrobacterias.**\n- **Formación de Biofilm (Baba).**\n- **Problemas Graves de Olor, Sabor y Color.**\n- **Corrosión Acelerada (MIC).**", "acciones": "1. **Desinfección de Choque y Limpieza (PRIORITARIO).**\n2. **Instalar Tratamiento de Oxidación/Filtración.**\n3. **Mantenimiento.**"})
     elif datos["hierro"] > 0.3 or datos["manganeso"] > 0.05:
         diagnosticos.append({"tipo": "warning", "titulo": "🟡 DIAGNÓSTICO: Riesgo por Metales", "riesgos": "- **Problemas Estéticos.**\n- **Acumulación en Tuberías.**", "acciones": "1. **Sistema de Oxidación/Filtración.**"})
+        
+    # 4. Parámetros Físico-Químicos
     if datos["turbidez"] > 1.0:
         diagnosticos.append({"tipo": "warning", "titulo": "🟡 DIAGNÓSTICO: Turbidez Elevada", "riesgos": "- **Protección de Patógenos.**", "acciones": "1. **Filtro de Sedimentos o Multimedia.**"})
     if not (6.0 <= datos["ph"] <= 7.0):
         diagnosticos.append({"tipo": "warning", "titulo": "🟡 DIAGNÓSTICO: pH Fuera de Rango Óptimo para Desinfección", "riesgos": "- **Baja Eficacia del Cloro.**\n- **Corrosión o Incrustaciones.**", "acciones": "1. **Ajuste de pH.**"})
+    
+    # 5. Sales y Minerales
     if datos["dureza_total"] > 180:
         diagnosticos.append({"tipo": "warning", "titulo": "🟡 DIAGNÓSTICO: Agua Muy Dura", "riesgos": "- **Incrustaciones Severas.**\n- **Bajo Rendimiento de Jabones.**", "acciones": "1. **Instalar un Ablandador de Agua.**"})
     if datos["sdt"] > 1500 or datos["sulfatos"] > 250:
         diagnosticos.append({"tipo": "warning", "titulo": "🟡 DIAGNóstico: Niveles Elevados de Sales Disueltas", "riesgos": "- **Sabor Salino o Amargo.**\n- **Efecto Laxante.**", "acciones": "1. **Ósmosis Inversa (RO).**"})
+        
     return diagnosticos
 
 # --- Clase de Generación de PDF (Sin cambios) ---
@@ -177,8 +186,11 @@ with st.sidebar:
     sdt = st.number_input("Sólidos Disueltos Totales (SDT) en ppm", 0, 300, 50, help="Problemas digestivos: > 1500 ppm")
     sulfatos = st.number_input("Sulfatos (SO₄²⁻) en ppm", 0, 50, 10, help="Límite recomendado: < 250 ppm")
     st.divider()
-    e_coli = st.number_input("E. coli (UFC/100mL)", 0, 0, 1, help="Debe ser 0 para agua potable")
-    coliformes_totales = st.number_input("Coliformes Totales (UFC/100mL)", 0, 0, 1, help="Debe ser 0 para agua potable")
+    
+    # --- LÍNEAS CORREGIDAS ---
+    e_coli = st.number_input("E. coli (UFC/100mL)", min_value=0, value=0, step=1, help="Debe ser 0 para agua potable")
+    coliformes_totales = st.number_input("Coliformes Totales (UFC/100mL)", min_value=0, value=0, step=1, help="Debe ser 0 para agua potable")
+    
     st.divider()
     orp = st.number_input("ORP (Potencial de Óxido-Reducción) en mV", -500, 1200, 650, 10, help="Ideal: > +650 mV (con cloro). Alerta > +850 mV.")
     analizar_btn = st.button("Analizar Calidad del Agua", type="primary", use_container_width=True)
