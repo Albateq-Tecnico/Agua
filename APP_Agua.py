@@ -82,24 +82,10 @@ def analizar_calidad_agua(datos):
 # --- Clases y Funciones de PDF (sin cambios) ---
 class PDF(FPDF):
     def header(self):
-        try:
-            self.image('log_agua_alb.png', 10, 8, 33)
-        except FileNotFoundError:
-            pass 
-        self.set_font('Arial', 'B', 15)
-        self.cell(80) 
-        self.cell(30, 10, 'Reporte de Calidad del Agua', 0, 0, 'C')
-        self.set_font('Arial', '', 8)
-        self.ln(5)
-        self.cell(80)
-        self.cell(30, 10, f'Fecha de Emision: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 0, 'C')
-        self.ln(20)
-
-    def footer(self): 
-        self.set_y(-15)
-        self.set_font('Arial', 'I', 8)
-        self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
-
+        try: self.image('log_agua_alb.png', 10, 8, 33)
+        except FileNotFoundError: pass 
+        self.set_font('Arial', 'B', 15); self.cell(80); self.cell(30, 10, 'Reporte de Calidad del Agua', 0, 0, 'C'); self.set_font('Arial', '', 8); self.ln(5); self.cell(80); self.cell(30, 10, f'Fecha de Emision: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 0, 'C'); self.ln(20)
+    def footer(self): self.set_y(-15); self.set_font('Arial', 'I', 8); self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
     def chapter_title(self, title): self.set_font('Arial', 'B', 12); self.cell(0, 10, title, 0, 1, 'L'); self.ln(4)
     def chapter_body(self, body): self.set_font('Arial', '', 10); body_cleaned = body.encode('latin-1', 'replace').decode('latin-1'); self.multi_cell(0, 5, body_cleaned); self.ln()
     def add_diagnostic_section(self, tipo, titulo, riesgos, acciones):
@@ -124,8 +110,7 @@ def generar_pdf(datos_entrada, resultados):
         pdf.multi_cell(0, 5, mensaje_exito); pdf.set_text_color(0, 0, 0)
     else:
         for diag in resultados: pdf.add_diagnostic_section(diag["tipo"], diag["titulo"], diag["riesgos"], diag["acciones"])
-    pdf.ln(10)
-    pdf.set_font('Arial', 'I', 8); pdf.set_text_color(128, 128, 128)
+    pdf.ln(10); pdf.set_font('Arial', 'I', 8); pdf.set_text_color(128, 128, 128)
     disclaimer_text = ("Nota de Responsabilidad: Esta es una herramienta de apoyo para uso en granja. " "La utilización de los resultados es de su exclusiva responsabilidad. No sustituye la asesoría profesional " "y Albateq S.A. no se hace responsable por las decisiones tomadas con base en la información aquí presentada.\n\n" "Desarrollado por la Dirección Técnica de Albateq | dtecnico@albateq.com")
     disclaimer_cleaned = disclaimer_text.encode('latin-1', 'replace').decode('latin-1')
     pdf.multi_cell(0, 4, disclaimer_cleaned, align='C')
@@ -138,57 +123,70 @@ except FileNotFoundError: st.warning("No se encontró 'log_PEQ.png'.")
 st.title("Asistente de Calidad del Agua")
 st.markdown("Introduce los resultados de tu análisis de agua para recibir un diagnóstico instantáneo y un plan de acción.")
 
+# --- NUEVO: Calculadora de Consumo y Capacidad ---
+with st.expander("Calculadora de Consumo y Capacidad de Planta", expanded=True):
+    with st.form("capacity_form"):
+        st.write("Introduce los datos de tu granja para dimensionar tus necesidades de tratamiento de agua.")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            num_galpones = st.number_input("Número de galpones", min_value=1, value=4, step=1)
+            consumo_ave_dia = st.number_input("Consumo (L/ave/día)", min_value=0.0, value=0.25, step=0.01)
+        with col2:
+            aves_por_galpon = st.number_input("Aves por galpón", min_value=1, value=10000, step=100)
+            horas_planta = st.number_input("Horas de funcionamiento de la planta/día", min_value=1, max_value=24, value=8, step=1)
+            
+        submitted = st.form_submit_button("Calcular Capacidad")
+        
+        if submitted:
+            total_aves = num_galpones * aves_por_galpon
+            consumo_total_diario = total_aves * consumo_ave_dia
+            capacidad_planta_hora = consumo_total_diario / horas_planta
+            
+            st.subheader("Resultados del Cálculo")
+            col1_res, col2_res, col3_res = st.columns(3)
+            with col1_res:
+                st.metric("Aves Totales", f"{total_aves:,}")
+            with col2_res:
+                st.metric("Consumo Total Diario", f"{consumo_total_diario:,.0f} L/día")
+            with col3_res:
+                st.metric("Capacidad de Planta Requerida", f"{capacidad_planta_hora:,.0f} L/hora")
+
+st.divider()
+
+# --- Inicio de la sección de análisis de calidad ---
 with st.sidebar:
-    # --- LOGO CORREGIDO ---
     try:
         st.image("log_agua_alb.png", use_container_width=True)
-    except FileNotFoundError:
-        st.warning("No se encontró 'log_agua_alb.png'.")
-    
-    st.header("Parámetros del Agua")
-    
-    # --- Selector de Modo de Análisis ---
-    modo_analisis = st.radio(
-        "Modo de Análisis",
-        ["Rápido (pH y Cloro)", "Completo (Todos los parámetros)"],
-        horizontal=True,
-        label_visibility="collapsed"
-    )
-
-    # --- Diccionario para guardar los datos del usuario ---
+    except FileNotFoundError: st.warning("No se encontró 'log_agua_alb.png'.")
+    st.header("Parámetros de Calidad del Agua")
+    modo_analisis = st.radio("Modo de Análisis", ["Rápido (pH y Cloro)", "Completo (Todos los parámetros)"], horizontal=True, label_visibility="collapsed")
     datos_usuario = {}
-
-    # --- Sección de Análisis Rápido (Siempre visible) ---
     st.subheader("1. Desinfección")
     datos_usuario["ph"] = st.number_input("pH", 0.0, 14.0, 7.2, 0.1, help="Rango ideal para desinfección con cloro: 6.0 - 7.0")
     datos_usuario["cloro_libre"] = st.number_input("Cloro Libre (mg/L)", 0.0, 500.0, 1.5, 0.1, help="Rango ideal para bebida: 1.0 - 4.0 mg/L")
     datos_usuario["cloro_total"] = st.number_input("Cloro Total (mg/L)", 0.0, 500.0, 1.6, 0.1, help="Debe ser igual o mayor que el Cloro Libre")
 
-    # --- Sección de Análisis Completo (Condicional) ---
     if modo_analisis == "Completo (Todos los parámetros)":
         st.divider()
         st.subheader("2. Contaminantes Químicos")
         datos_usuario["nitratos"] = st.number_input("Nitratos (NO₃⁻) en ppm", min_value=0.0, value=5.0, step=1.0, help="Límite máximo: 10 ppm")
         datos_usuario["nitritos"] = st.number_input("Nitritos (NO₂⁻) en ppm", min_value=0.0, value=0.0, step=0.1, help="Límite máximo: 1 ppm")
-        
         st.divider()
         st.subheader("3. Parámetros Físicos y Estéticos")
         datos_usuario["hierro"] = st.number_input("Hierro (Fe) en mg/L", 0.0, value=0.1, step=0.1, help="Límite estético: < 0.3 mg/L")
         datos_usuario["manganeso"] = st.number_input("Manganeso (Mn) en mg/L", 0.0, value=0.02, step=0.01, help="Límite estético: < 0.05 mg/L")
         datos_usuario["turbidez"] = st.number_input("Turbidez en NTU", 0.0, 0.5, 0.5, help="Límite para desinfección eficaz: < 1 NTU")
         datos_usuario["color_aparente"] = st.number_input("Color Aparente (U. Pt-Co)", min_value=0, value=10, step=5, help="Límite estético: 15 U. Pt-Co")
-        
         st.divider()
         st.subheader("4. Parámetros Generales")
         datos_usuario["dureza_total"] = st.number_input("Dureza Total (CaCO₃) en mg/L", 0, 120, 10, help="Agua muy dura: > 180 mg/L")
         datos_usuario["sdt"] = st.number_input("Sólidos Disueltos Totales (SDT) en ppm", 0, 300, 50, help="Límite recomendado: < 1000 ppm")
         datos_usuario["sulfatos"] = st.number_input("Sulfatos (SO₄²⁻) en ppm", 0, 50, 10, help="Límite recomendado: < 250 ppm")
-        
         st.divider()
         st.subheader("5. Microbiología")
         datos_usuario["e_coli"] = st.number_input("E. coli (UFC/100mL)", min_value=0, value=0, step=1, help="Debe ser 0 para agua potable")
         datos_usuario["coliformes_totales"] = st.number_input("Coliformes Totales (UFC/100mL)", min_value=0, value=0, step=1, help="Debe ser 0 para agua potable")
-        
         st.divider()
         st.subheader("6. Potencial de Desinfección")
         datos_usuario["orp"] = st.number_input("ORP (Potencial de Óxido-Reducción) en mV", -500, 1200, 650, 10, help="Ideal: > +650 mV (con cloro). Alerta Corrosión: > +850 mV.")
@@ -204,12 +202,12 @@ if analizar_btn:
         diagnosticos = analizar_calidad_agua(datos_usuario)
         st.session_state['diagnosticos'] = diagnosticos
         st.session_state['datos_usuario'] = datos_usuario
+        st.session_state['modo_analisis_ejecutado'] = modo_analisis
 
 if 'diagnosticos' in st.session_state:
+    st.header("Resultados del Análisis de Calidad")
     diagnosticos = st.session_state['diagnosticos']
     datos_actuales = st.session_state['datos_usuario']
-    
-    st.header("Resultados del Análisis")
     if not diagnosticos:
         st.success("✅ ¡Excelente! La calidad de tu agua cumple con los parámetros analizados.")
     else:
@@ -223,20 +221,14 @@ if 'diagnosticos' in st.session_state:
                 st.subheader("Riesgos Potenciales"); st.markdown(diag['riesgos'], unsafe_allow_html=True)
                 st.subheader("Plan de Acción Recomendado"); st.markdown(diag['acciones'], unsafe_allow_html=True)
     
-    # --- Lógica para recomendar parámetros faltantes ---
-    parametros_todos = [
-        "nitratos", "nitritos", "hierro", "manganeso", "turbidez", 
-        "color_aparente", "dureza_total", "sdt", "sulfatos", 
-        "e_coli", "coliformes_totales", "orp"
-    ]
-    parametros_faltantes = [p.replace("_", " ").title() for p in parametros_todos if p not in datos_actuales]
-    
-    if parametros_faltantes:
-        st.info(f"**Para un análisis más completo**, te recomendamos medir también los siguientes parámetros: **{', '.join(parametros_faltantes)}**.")
+    if st.session_state.get('modo_analisis_ejecutado') == "Rápido (pH y Cloro)":
+        parametros_todos = ["nitratos", "nitritos", "hierro", "manganeso", "turbidez", "color_aparente", "dureza_total", "sdt", "sulfatos", "e_coli", "coliformes_totales", "orp"]
+        parametros_faltantes = [p.replace("_", " ").title() for p in parametros_todos if p not in datos_actuales]
+        if parametros_faltantes:
+            st.info(f"**Para un análisis más completo**, te recomendamos medir también: **{', '.join(parametros_faltantes)}**.")
 
-    # Botón de descarga de PDF y nota de responsabilidad
     pdf_bytes = generar_pdf(datos_actuales, diagnosticos)
     st.download_button("📄 Descargar Reporte en PDF", pdf_bytes, f"reporte_calidad_agua_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf")
     st.divider()
-    st.info("""**Nota de Responsabilidad:** Esta es una herramienta de apoyo para uso en granja. La utilización de los resultados es de su exclusiva responsabilidad. No sustituye la asesoría profesional y Albateq S.A. no se hace responsable por las decisiones tomadas con base en la información aquí presentada.""")
-    st.markdown("<div style='text-align: center; font-size: small;'>Desarrollado por la Dirección Técnica de Albateq | dtecnico@albateq.com</div>", unsafe_allow_html=True)
+    st.info("""**Nota de Responsabilidad:** Esta es una herramienta de apoyo para uso en granja...""")
+    st.markdown("<div style='text-align: center; font-size: small;'>Desarrollado por la Dirección Técnica...</div>", unsafe_allow_html=True)
