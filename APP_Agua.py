@@ -81,10 +81,7 @@ def analizar_calidad_agua(datos):
 
 # --- Clases y Funciones de PDF (sin cambios) ---
 class PDF(FPDF):
-    def header(self):
-        try: self.image('log_agua_alb.png', 10, 8, 33)
-        except FileNotFoundError: pass 
-        self.set_font('Arial', 'B', 15); self.cell(80); self.cell(30, 10, 'Reporte de Calidad del Agua', 0, 0, 'C'); self.set_font('Arial', '', 8); self.ln(5); self.cell(80); self.cell(30, 10, f'Fecha de Emision: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 0, 'C'); self.ln(20)
+    def header(self): self.set_font('Arial', 'B', 12); self.cell(0, 10, 'Reporte de Calidad del Agua', 0, 1, 'C'); self.set_font('Arial', '', 8); self.cell(0, 10, f'Fecha de Emision: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 1, 'C'); self.ln(10)
     def footer(self): self.set_y(-15); self.set_font('Arial', 'I', 8); self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
     def chapter_title(self, title): self.set_font('Arial', 'B', 12); self.cell(0, 10, title, 0, 1, 'L'); self.ln(4)
     def chapter_body(self, body): self.set_font('Arial', '', 10); body_cleaned = body.encode('latin-1', 'replace').decode('latin-1'); self.multi_cell(0, 5, body_cleaned); self.ln()
@@ -123,43 +120,40 @@ except FileNotFoundError: st.warning("No se encontró 'log_PEQ.png'.")
 st.title("Asistente de Calidad del Agua")
 st.markdown("Introduce los resultados de tu análisis de agua para recibir un diagnóstico instantáneo y un plan de acción.")
 
-# --- NUEVO: Calculadora de Consumo y Capacidad ---
-with st.expander("Calculadora de Consumo y Capacidad de Planta", expanded=True):
-    with st.form("capacity_form"):
-        st.write("Introduce los datos de tu granja para dimensionar tus necesidades de tratamiento de agua.")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            num_galpones = st.number_input("Número de galpones", min_value=1, value=4, step=1)
-            consumo_ave_dia = st.number_input("Consumo (L/ave/día)", min_value=0.0, value=0.25, step=0.01)
-        with col2:
-            aves_por_galpon = st.number_input("Aves por galpón", min_value=1, value=10000, step=100)
-            horas_planta = st.number_input("Horas de funcionamiento de la planta/día", min_value=1, max_value=24, value=8, step=1)
-            
-        submitted = st.form_submit_button("Calcular Capacidad")
-        
-        if submitted:
-            total_aves = num_galpones * aves_por_galpon
-            consumo_total_diario = total_aves * consumo_ave_dia
-            capacidad_planta_hora = consumo_total_diario / horas_planta
-            
-            st.subheader("Resultados del Cálculo")
-            col1_res, col2_res, col3_res = st.columns(3)
-            with col1_res:
-                st.metric("Aves Totales", f"{total_aves:,}")
-            with col2_res:
-                st.metric("Consumo Total Diario", f"{consumo_total_diario:,.0f} L/día")
-            with col3_res:
-                st.metric("Capacidad de Planta Requerida", f"{capacidad_planta_hora:,.0f} L/hora")
+# --- La calculadora de consumo fue movida a la barra lateral ---
 
 st.divider()
 
 # --- Inicio de la sección de análisis de calidad ---
 with st.sidebar:
-    try:
-        st.image("log_agua_alb.png", use_container_width=True)
-    except FileNotFoundError: st.warning("No se encontró 'log_agua_alb.png'.")
-    st.header("Parámetros de Calidad del Agua")
+    # --- NUEVO: Calculadora de Capacidad en la Barra Lateral ---
+    if st.toggle("Activar Calculadora de Capacidad"):
+        with st.form("capacity_form"):
+            st.markdown("#### Calculadora de Consumo y Capacidad")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                num_galpones = st.number_input("Nº de galpones", min_value=1, value=4, step=1)
+                consumo_ave_dia = st.number_input("Consumo (L/ave/día)", min_value=0.0, value=0.25, step=0.01, format="%.2f")
+            with col2:
+                aves_por_galpon = st.number_input("Aves por galpón", min_value=1, value=10000, step=100)
+                horas_planta = st.number_input("Horas de planta/día", min_value=1, max_value=24, value=8, step=1)
+                
+            submitted = st.form_submit_button("Calcular")
+            
+            if submitted:
+                total_aves = num_galpones * aves_por_galpon
+                consumo_total_diario = total_aves * consumo_ave_dia
+                capacidad_planta_hora = consumo_total_diario / horas_planta
+                
+                st.markdown("---")
+                st.markdown("##### Resultados del Cálculo")
+                st.metric("Consumo Total Diario", f"{consumo_total_diario:,.0f} L/día")
+                st.metric("Capacidad de Planta Requerida", f"{capacidad_planta_hora:,.0f} L/hora")
+    
+    st.divider() # Separador entre la calculadora y el análisis de calidad
+
+    st.header("Análisis de Calidad del Agua")
     modo_analisis = st.radio("Modo de Análisis", ["Rápido (pH y Cloro)", "Completo (Todos los parámetros)"], horizontal=True, label_visibility="collapsed")
     datos_usuario = {}
     st.subheader("1. Desinfección")
